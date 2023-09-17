@@ -2,6 +2,7 @@ vehicle: 'tesla.model3'
 
 sensors: [
             {sensor_type: camera,
+             sensor_name: camera1,
              image_size_x: 1920,
              image_size_y: 1080,
              fov: 110,

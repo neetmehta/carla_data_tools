@@ -41,6 +41,8 @@ class EgoVehicle:
     def sensor_setup(self, world):
         # Set initial camera translation
         sensors = self.vehicle_cfg['sensors']
+        self.sensors = {}
+        self.sensors_queues = {}
         
         for sensor in sensors:
             if sensor['sensor_type'] == 'camera':
@@ -49,5 +51,18 @@ class EgoVehicle:
                 camera_init_trans = carla.Transform(cam_location, cam_rotation)
                 self.camera_bp = self.blueprint_lib.find('sensor.camera.rgb')
                 self.rgb_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
+                self.sensors[sensor['sensor_name']] = self.rgb_camera
+                self.sensors_queues[sensor['sensor_name']] = queue.Queue()
+                time.sleep(2.0)
+                self.spectator.set_transform(self.rgb_camera.get_transform())
+                
+            if sensor['sensor_type'] == 'depth_camera':
+                cam_location = carla.Location(*sensor['translation'])
+                cam_rotation = carla.Rotation(*sensor['rotation'])
+                camera_init_trans = carla.Transform(cam_location, cam_rotation)
+                self.camera_bp = self.blueprint_lib.find('sensor.camera.rgb')
+                self.rgb_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
+                self.sensors[sensor['sensor_name']] = self.rgb_camera
+                self.sensors_queues[sensor['sensor_name']] = queue.Queue()
                 time.sleep(2.0)
                 self.spectator.set_transform(self.rgb_camera.get_transform())

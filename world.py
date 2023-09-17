@@ -21,6 +21,8 @@ import time
 import yaml
 import queue
 
+
+    
 class CarlaWorld:
     
     def __init__(self, cfg = None) -> None:
@@ -29,8 +31,8 @@ class CarlaWorld:
         self.client.set_timeout(3.0)
         self.world = self.client.get_world()
         self.ego_vehicle = None
-        self._queues = []
-        self._settings = None
+        self.world_queue = queue.Queue()
+        self._settings = None        
         
     def set_synchronous(self):
         self._settings = self.world.get_settings()
@@ -38,6 +40,8 @@ class CarlaWorld:
             no_rendering_mode=False,
             synchronous_mode=True,
             fixed_delta_seconds=self.delta_seconds))
+        self.world.on_tick(self.world_queue.put)
+            
         
     def __enter__(self):
         self._settings = self.world.get_settings()
@@ -80,9 +84,16 @@ class CarlaWorld:
             if temp is not None:
                 self.vehicles.append(temp)
                 temp.set_autopilot(True)
+    
+                    
+    def tick(self):
+        return self.world.tick()
+        
                 
     def destroy_actors(self):
         for actor in self.world.get_actors().filter('*vehicle*'):
             actor.destroy()
         for actor in self.world.get_actors().filter('*sensor*'):
             actor.destroy()
+            
+    
