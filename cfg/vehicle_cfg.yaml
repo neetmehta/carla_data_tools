@@ -1,0 +1,10 @@
+vehicle: 'tesla.model3'
+
+sensors: [
+            {sensor_type: camera,
+             image_size_x: 1920,
+             image_size_y: 1080,
+             fov: 110,
+             translation: [2,0,2],
+             rotation: [0, 0, 0]}
+]

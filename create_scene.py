@@ -20,12 +20,13 @@ import time
 
 import yaml
 
+from world import CarlaWorld
+from ego_vehicle import EgoVehicle
+
 class Scene:
 
-    def __init__(self, cfg, traffic_level=20) -> None:
+    def __init__(self, traffic_level=20) -> None:
         
-        self.image_size_y, self.image_size_x = cfg['camera_1']['image_size_y'], cfg['camera_1']['image_size_x']
-        self.fov = cfg['camera_1']['fov']
         self._set_world()
         # The world contains the list blueprints that we can use for adding new
         # actors into the simulation.
@@ -102,9 +103,6 @@ class Scene:
         # print(vehicle_transform.get_matrix())
         # Add one of each type of camera
         self.camera_bp = self.blueprint_lib.find('sensor.camera.rgb')
-        self.camera_bp.set_attribute('image_size_x', '1920')
-        self.camera_bp.set_attribute('image_size_y', '1080')
-        self.camera_bp.set_attribute('fov', '110')
         self.rgb_camera = self.world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
         time.sleep(2.0)
         self.spectator.set_transform(self.rgb_camera.get_transform())
@@ -149,9 +147,16 @@ class Scene:
                 break
 
 if __name__ == "__main__":
-    
-    with open('sensor_configs/sensor_config_1.yaml', 'r') as f:
-        cfg = yaml.safe_load(f) 
 
-    scene = Scene(cfg)
+    with open('cfg\\vehicle_cfg.yaml', 'r') as f:
+        vehicle_cfg = yaml.safe_load(f) 
+    carla_world = CarlaWorld()
+    carla_world.spawn_actors(10)
+    bp_lib = carla_world.world.get_blueprint_library()
+    ego_vehicle = EgoVehicle(bp_lib, vehicle_cfg)
+    ego_vehicle.spwan_ego_vehicle(carla_world.world)
+    ego_vehicle.sensor_setup(carla_world.world)
+    carla_world.destroy_actors()
+    
+
 
