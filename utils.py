@@ -2,6 +2,8 @@ import numpy as np
 import glob
 import os
 import sys
+import open3d as o3d
+from matplotlib import cm
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -12,6 +14,24 @@ except IndexError:
     pass
 import carla
 
+def add_open3d_axis(vis):
+    """Add a small 3D axis on Open3D Visualizer"""
+    axis = o3d.geometry.LineSet()
+    axis.points = o3d.utility.Vector3dVector(np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]]))
+    axis.lines = o3d.utility.Vector2iVector(np.array([
+        [0, 1],
+        [0, 2],
+        [0, 3]]))
+    axis.colors = o3d.utility.Vector3dVector(np.array([
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]]))
+    vis.add_geometry(axis)
+    
 def retrive_data(sensor_queue, frame_id, timeout):
     while True:
         data = sensor_queue.get(timeout=timeout)
@@ -41,3 +61,30 @@ def process_sem_seg_image(image):
     array = array[:, :, :3]
     # array = array[:, :, ::-1]
     return array
+
+def process_point_cloud(point_cloud, point_list):
+    # Auxilliary code for colormaps and axes
+    VIRIDIS = np.array(cm.get_cmap('plasma').colors)
+    VID_RANGE = np.linspace(0.0, 1.0, VIRIDIS.shape[0])
+
+    COOL_RANGE = np.linspace(0.0, 1.0, VIRIDIS.shape[0])
+    COOL = np.array(cm.get_cmap('winter')(COOL_RANGE))
+    COOL = COOL[:,:3]
+    data = np.copy(np.frombuffer(point_cloud.raw_data, dtype=np.dtype('f4')))
+    data = np.reshape(data, (int(data.shape[0] / 4), 4))
+
+    # Isolate the intensity and compute a color for it
+    intensity = data[:, -1]
+    intensity_col = 1.0 - np.log(intensity) / np.log(np.exp(-0.004 * 100))
+    int_color = np.c_[
+        np.interp(intensity_col, VID_RANGE, VIRIDIS[:, 0]),
+        np.interp(intensity_col, VID_RANGE, VIRIDIS[:, 1]),
+        np.interp(intensity_col, VID_RANGE, VIRIDIS[:, 2])]
+
+    points = data[:, :-1]
+
+    points[:, :1] = -points[:, :1]
+
+    point_list.points = o3d.utility.Vector3dVector(points)
+    point_list.colors = o3d.utility.Vector3dVector(int_color)
+    return point_list

@@ -32,7 +32,8 @@ class CarlaWorld:
         self.world = self.client.get_world()
         self.ego_vehicle = None
         self.world_queue = queue.Queue()
-        self._settings = None        
+        self._settings = None 
+        self.num_cars = cfg['no_of_vehicles']     
         
     def set_synchronous(self):
         self._settings = self.world.get_settings()
@@ -41,32 +42,21 @@ class CarlaWorld:
             synchronous_mode=True,
             fixed_delta_seconds=self.delta_seconds))
         self.world.on_tick(self.world_queue.put)
-            
-        
-    def __enter__(self):
-        self._settings = self.world.get_settings()
-        self.frame = self.world.apply_settings(carla.WorldSettings(
-            no_rendering_mode=False,
-            synchronous_mode=True,
-            fixed_delta_seconds=self.delta_seconds))
-        
-    def __exit__(self):
-        self.world.apply_settings(self._settings)
         
     def restore(self):
         self.world.apply_settings(self._settings)
         
-    def spawn_actors(self, num_cars):
+    def spawn_actors(self):
         
         self.spawn_points = self.world.get_map().get_spawn_points()
         random.seed(0)
 
-        if num_cars>len(self.spawn_points):
+        if self.num_cars>len(self.spawn_points):
             print('more cars then spawn points')
-            num_cars = len(self.spawn_points) - 1
+            self.num_cars = len(self.spawn_points) - 1
 
         else:
-            self.spawn_points = self.spawn_points[:num_cars]
+            self.spawn_points = self.spawn_points[:self.num_cars]
 
 
         # Select some models from the blueprint library
@@ -79,7 +69,7 @@ class CarlaWorld:
         self.vehicles = []
 
         # Take a random sample of the spawn points and spawn some vehicles
-        for i, spawn_point in enumerate(random.sample(self.spawn_points, num_cars)):
+        for i, spawn_point in enumerate(random.sample(self.spawn_points, self.num_cars)):
             temp = self.world.try_spawn_actor(random.choice(blueprints), spawn_point)
             if temp is not None:
                 self.vehicles.append(temp)

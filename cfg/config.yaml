@@ -1,2 +1,3 @@
 fps: 20
+no_of_vehicles: 10
 synchronous: True
