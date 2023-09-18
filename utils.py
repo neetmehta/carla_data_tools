@@ -26,10 +26,18 @@ def process_rgb_image(image):
     return array
 
 def process_depth_image(image):
-    # image.convert(carla.ColorConverter.Raw)
+
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
     array = array.astype(np.float32)
     normalized_depth = np.dot(array[:, :, :3], [65536.0, 256.0, 1.0])
     normalized_depth /= 16777215.0  # (256.0 * 256.0 * 256.0 - 1.0)
     return normalized_depth
+
+def process_sem_seg_image(image):
+    image.convert(carla.ColorConverter.CityScapesPalette)
+    array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+    array = np.reshape(array, (image.height, image.width, 4))
+    array = array[:, :, :3]
+    # array = array[:, :, ::-1]
+    return array

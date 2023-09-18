@@ -4,7 +4,7 @@ import yaml
 import cv2
 import numpy as np
 
-from utils import process_rgb_image, retrive_data
+from utils import process_rgb_image, retrive_data, process_sem_seg_image, process_depth_image
 
 def main():
     with open('cfg\\vehicle_cfg.yaml', 'r') as f:
@@ -32,16 +32,17 @@ def main():
             data[sensor_name] = retrive_data(ego_vehicle.sensors_queues[sensor_name], frame_id, 2.0)
         
         rgb_array = process_rgb_image(data['rgb_camera1'])
-        # sem_seg_array = process_sem_seg_image(data['sem_seg_camera1'])
+        sem_seg_array = process_sem_seg_image(data['sem_seg_camera1'])
         depth_array = process_depth_image(data['depth_camera1'])
         cv2.imshow('RGB Camera', rgb_array)
+        cv2.imshow('Depth Camera', depth_array)
+        cv2.imshow('Semantic Camera', sem_seg_array)
 
         # Quit if user presses 'q'
         if cv2.waitKey(1) == ord('q'):
             cv2.destroyAllWindows()
             
             break
-
     carla_world.restore()
     carla_world.destroy_actors()
     
