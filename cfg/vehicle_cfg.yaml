@@ -1,8 +1,24 @@
 vehicle: 'tesla.model3'
 
 sensors: [
-            {sensor_type: camera,
-             sensor_name: camera1,
+            {sensor_type: rgb_camera,
+             sensor_name: rgb_camera1,
+             image_size_x: 1920,
+             image_size_y: 1080,
+             fov: 110,
+             translation: [2,0,2],
+             rotation: [0, 0, 0]},
+
+             {sensor_type: depth_camera,
+             sensor_name: depth_camera1,
+             image_size_x: 1920,
+             image_size_y: 1080,
+             fov: 110,
+             translation: [2,0,2],
+             rotation: [0, 0, 0]},
+
+             {sensor_type: sem_seg_camera,
+             sensor_name: sem_seg_camera1,
              image_size_x: 1920,
              image_size_y: 1080,
              fov: 110,

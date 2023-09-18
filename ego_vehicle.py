@@ -45,24 +45,35 @@ class EgoVehicle:
         self.sensors_queues = {}
         
         for sensor in sensors:
-            if sensor['sensor_type'] == 'camera':
+            if sensor['sensor_type'] == 'rgb_camera':
                 cam_location = carla.Location(*sensor['translation'])
                 cam_rotation = carla.Rotation(*sensor['rotation'])
                 camera_init_trans = carla.Transform(cam_location, cam_rotation)
                 self.camera_bp = self.blueprint_lib.find('sensor.camera.rgb')
-                self.rgb_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
-                self.sensors[sensor['sensor_name']] = self.rgb_camera
+                rgb_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
+                self.sensors[sensor['sensor_name']] = rgb_camera
                 self.sensors_queues[sensor['sensor_name']] = queue.Queue()
                 time.sleep(2.0)
-                self.spectator.set_transform(self.rgb_camera.get_transform())
+                self.spectator.set_transform(rgb_camera.get_transform())
                 
             if sensor['sensor_type'] == 'depth_camera':
                 cam_location = carla.Location(*sensor['translation'])
                 cam_rotation = carla.Rotation(*sensor['rotation'])
                 camera_init_trans = carla.Transform(cam_location, cam_rotation)
-                self.camera_bp = self.blueprint_lib.find('sensor.camera.rgb')
-                self.rgb_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
-                self.sensors[sensor['sensor_name']] = self.rgb_camera
+                self.camera_bp = self.blueprint_lib.find('sensor.camera.depth')
+                depth_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
+                self.sensors[sensor['sensor_name']] = depth_camera
                 self.sensors_queues[sensor['sensor_name']] = queue.Queue()
                 time.sleep(2.0)
-                self.spectator.set_transform(self.rgb_camera.get_transform())
+                self.spectator.set_transform(depth_camera.get_transform())
+                
+            if sensor['sensor_type'] == 'sem_seg_camera':
+                cam_location = carla.Location(*sensor['translation'])
+                cam_rotation = carla.Rotation(*sensor['rotation'])
+                camera_init_trans = carla.Transform(cam_location, cam_rotation)
+                self.camera_bp = self.blueprint_lib.find('sensor.camera.semantic_segmentation')
+                sem_seg_camera = world.spawn_actor(self.camera_bp, camera_init_trans, attach_to=self.ego_vehicle)
+                self.sensors[sensor['sensor_name']] = sem_seg_camera
+                self.sensors_queues[sensor['sensor_name']] = queue.Queue()
+                time.sleep(2.0)
+                self.spectator.set_transform(sem_seg_camera.get_transform())
