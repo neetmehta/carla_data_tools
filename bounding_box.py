@@ -1,13 +1,18 @@
-
 import glob
 import os
 import sys
 
 try:
-    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+    sys.path.append(
+        glob.glob(
+            "../carla/dist/carla-*%d.%d-%s.egg"
+            % (
+                sys.version_info.major,
+                sys.version_info.minor,
+                "win-amd64" if os.name == "nt" else "linux-x86_64",
+            )
+        )[0]
+    )
 except IndexError:
     pass
 
@@ -22,11 +27,13 @@ import weakref
 import random
 import numpy as np
 
+
 class ClientSideBoundingBoxes(object):
     """
     This is a module responsible for creating 3D bounding boxes and drawing them
     client-side on pygame surface.
     """
+
     @staticmethod
     def get_bounding_boxes(ego_vehicle, vehicles, sensor, additional_bb=None):
         """
@@ -34,15 +41,21 @@ class ClientSideBoundingBoxes(object):
         """
 
         if additional_bb:
-            static_bounding_boxes = [ClientSideBoundingBoxes.get_bounding_box_static(bbox, sensor) for bbox in additional_bb]
-            
-        bounding_boxes = [ClientSideBoundingBoxes.get_bounding_box(vehicle, sensor) for vehicle in vehicles if vehicle.id != ego_vehicle.id]
-        
-        
+            static_bounding_boxes = [
+                ClientSideBoundingBoxes.get_bounding_box_static(bbox, sensor)
+                for bbox in additional_bb
+            ]
+
+        bounding_boxes = [
+            ClientSideBoundingBoxes.get_bounding_box(vehicle, sensor)
+            for vehicle in vehicles
+            if vehicle.id != ego_vehicle.id
+        ]
+
         bounding_boxes.extend(static_bounding_boxes)
-        
+
         return bounding_boxes
-    
+
     @staticmethod
     def get_bounding_box(vehicle, sensor):
         """
@@ -50,10 +63,12 @@ class ClientSideBoundingBoxes(object):
         """
 
         bb_cords = ClientSideBoundingBoxes._create_bb_points(vehicle)
-        cords_x_y_z = ClientSideBoundingBoxes._vehicle_to_sensor(bb_cords, vehicle, sensor)[:3, :]
+        cords_x_y_z = ClientSideBoundingBoxes._vehicle_to_sensor(
+            bb_cords, vehicle, sensor
+        )[:3, :]
 
         return cords_x_y_z
-    
+
     @staticmethod
     def get_bounding_box_static(bbox, sensor):
         """
@@ -64,7 +79,7 @@ class ClientSideBoundingBoxes(object):
         sensor_cord = ClientSideBoundingBoxes._world_to_sensor(bb_cords, sensor)[:3, :]
 
         return sensor_cord
-    
+
     @staticmethod
     def _create_bb_points_static(bbox):
         """
@@ -81,7 +96,7 @@ class ClientSideBoundingBoxes(object):
         cords[2, :] = np.array([extent[6].x, extent[6].y, extent[6].z, 1])
         cords[6, :] = np.array([extent[7].x, extent[7].y, extent[7].z, 1])
         return cords.T
-    
+
     @staticmethod
     def _create_bb_points(vehicle):
         """
@@ -99,7 +114,7 @@ class ClientSideBoundingBoxes(object):
         cords[6, :] = np.array([-extent.x, -extent.y, extent.z, 1])
         cords[7, :] = np.array([extent.x, -extent.y, extent.z, 1])
         return cords
-    
+
     @staticmethod
     def _vehicle_to_sensor(cords, vehicle, sensor):
         """
@@ -118,7 +133,9 @@ class ClientSideBoundingBoxes(object):
 
         bb_transform = carla.Transform(vehicle.bounding_box.location)
         bb_vehicle_matrix = ClientSideBoundingBoxes.get_matrix(bb_transform)
-        vehicle_world_matrix = ClientSideBoundingBoxes.get_matrix(vehicle.get_transform())
+        vehicle_world_matrix = ClientSideBoundingBoxes.get_matrix(
+            vehicle.get_transform()
+        )
         bb_world_matrix = np.dot(vehicle_world_matrix, bb_vehicle_matrix)
         world_cords = np.dot(bb_world_matrix, np.transpose(cords))
         return world_cords
@@ -133,7 +150,7 @@ class ClientSideBoundingBoxes(object):
         world_sensor_matrix = np.linalg.inv(sensor_world_matrix)
         sensor_cords = np.dot(world_sensor_matrix, cords)
         return sensor_cords
-    
+
     @staticmethod
     def get_matrix(transform):
         """
