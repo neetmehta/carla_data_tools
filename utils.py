@@ -14,6 +14,37 @@ except IndexError:
     pass
 import carla
 
+def capture_data(**kwargs):
+    out_dir = kwargs.get('out_dir', os.path.join(os.getcwd(), 'data'))
+    rgb = kwargs.get('rgb', None)
+    depth = kwargs.get('depth', None)
+    semantic_mask = kwargs.get('semantic', None)
+    lidar_pc = kwargs.get('point_cloud', None)
+    bb = kwargs.get('bounding_boxes', None)
+    
+    if rgb:
+        os.makedirs(os.path.join(out_dir, 'rgb_images'))
+        
+    if depth:
+        os.makedirs(os.path.join(out_dir, 'depth'))
+        
+    if semantic_mask:
+        os.makedirs(os.path.join(out_dir, 'semantic_mask'))
+        
+    if lidar_pc:
+        os.makedirs(os.path.join(out_dir, 'lidar'))
+        
+    if bb:
+        os.makedirs(os.path.join(out_dir, '3d_bb'))
+    
+    
+def is_empty(pcd, box, threshold=10):
+    bounding_box = o3d.geometry.AxisAlignedBoundingBox(min_bound=np.min(box, axis=1),
+                                                  max_bound=np.max(box, axis=1))
+    
+    filtered_point_cloud = pcd.crop(bounding_box)
+    return len(np.array(filtered_point_cloud.points)) < threshold
+
 def add_open3d_axis(vis):
     """Add a small 3D axis on Open3D Visualizer"""
     axis = o3d.geometry.LineSet()

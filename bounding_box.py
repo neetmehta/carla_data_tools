@@ -27,15 +27,20 @@ class ClientSideBoundingBoxes(object):
     This is a module responsible for creating 3D bounding boxes and drawing them
     client-side on pygame surface.
     """
-
     @staticmethod
-    def get_bounding_boxes(ego_vehicle, vehicles, sensor):
+    def get_bounding_boxes(ego_vehicle, vehicles, sensor, additional_bb=None):
         """
         Creates 3D bounding boxes based on carla vehicle list and sensor.
         """
 
+        if additional_bb:
+            static_bounding_boxes = [ClientSideBoundingBoxes.get_bounding_box_static(bbox, sensor) for bbox in additional_bb]
+            
         bounding_boxes = [ClientSideBoundingBoxes.get_bounding_box(vehicle, sensor) for vehicle in vehicles if vehicle.id != ego_vehicle.id]
-
+        
+        
+        bounding_boxes.extend(static_bounding_boxes)
+        
         return bounding_boxes
     
     @staticmethod
@@ -48,6 +53,34 @@ class ClientSideBoundingBoxes(object):
         cords_x_y_z = ClientSideBoundingBoxes._vehicle_to_sensor(bb_cords, vehicle, sensor)[:3, :]
 
         return cords_x_y_z
+    
+    @staticmethod
+    def get_bounding_box_static(bbox, sensor):
+        """
+        Returns 3D bounding box for a vehicle based on sensor view.
+        """
+
+        bb_cords = ClientSideBoundingBoxes._create_bb_points_static(bbox)
+        sensor_cord = ClientSideBoundingBoxes._world_to_sensor(bb_cords, sensor)[:3, :]
+
+        return sensor_cord
+    
+    @staticmethod
+    def _create_bb_points_static(bbox):
+        """
+        Returns 3D bounding box for a carla.BoundingBox object.
+        """
+        cords = np.zeros((8, 4))
+        extent = bbox.get_world_vertices(carla.Transform())
+        cords[0, :] = np.array([extent[0].x, extent[0].y, extent[0].z, 1])
+        cords[4, :] = np.array([extent[1].x, extent[1].y, extent[1].z, 1])
+        cords[3, :] = np.array([extent[2].x, extent[2].y, extent[2].z, 1])
+        cords[7, :] = np.array([extent[3].x, extent[3].y, extent[3].z, 1])
+        cords[1, :] = np.array([extent[4].x, extent[4].y, extent[4].z, 1])
+        cords[5, :] = np.array([extent[5].x, extent[5].y, extent[5].z, 1])
+        cords[2, :] = np.array([extent[6].x, extent[6].y, extent[6].z, 1])
+        cords[6, :] = np.array([extent[7].x, extent[7].y, extent[7].z, 1])
+        return cords.T
     
     @staticmethod
     def _create_bb_points(vehicle):

@@ -19,7 +19,7 @@ except IndexError:
     pass
 import carla
 
-from utils import process_rgb_image, retrive_data, process_depth_image, process_sem_seg_image, process_point_cloud, add_open3d_axis
+from utils import process_rgb_image, retrive_data, process_depth_image, process_sem_seg_image, process_point_cloud, add_open3d_axis, is_empty
 from bounding_box import ClientSideBoundingBoxes
 
 lines = [[0, 1], [1, 2], [2, 3], [3, 0],
@@ -29,16 +29,18 @@ lines = [[0, 1], [1, 2], [2, 3], [3, 0],
 def main():
     with open('cfg\\vehicle_cfg.yaml', 'r') as f:
         vehicle_cfg = yaml.safe_load(f) 
-    
+        
     with open('cfg\\config.yaml', 'r') as f:
         cfg = yaml.safe_load(f) 
         
     carla_world = CarlaWorld(cfg)
-    carla_world.spawn_actors()
+
     bp_lib = carla_world.world.get_blueprint_library()
     ego_vehicle = EgoVehicle(bp_lib, vehicle_cfg)
     ego_vehicle.spwan_ego_vehicle(carla_world.world)
     ego_vehicle.sensor_setup(carla_world.world)
+    static_bboxes = carla_world.world.get_level_bbs(carla.CityObjectLabel.Car)
+    carla_world.spawn_actors()
     ego_vehicle.ego_vehicle.set_autopilot(True)
     for sensor_name, sensor in ego_vehicle.sensors.items():
         sensor.listen(ego_vehicle.sensors_queues[sensor_name].put)
@@ -58,6 +60,8 @@ def main():
     vis.get_render_option().show_coordinate_frame = True
     add_open3d_axis(vis)
     frame = 0
+    line_sets = []
+
     while True:
         data = {}
         frame_id = carla_world.tick()
@@ -69,26 +73,28 @@ def main():
         # depth_array = process_depth_image(data['depth_camera1'])
         process_point_cloud(data['lidar1'], point_list)
         vehicles = carla_world.world.get_actors().filter('vehicle.*')
-        bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(ego_vehicle.ego_vehicle, vehicles, ego_vehicle.sensors['lidar1'])
+        
+        bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(ego_vehicle.ego_vehicle, vehicles, ego_vehicle.sensors['lidar1'], additional_bb=static_bboxes)
         for box in bounding_boxes:
             box[0,:] *= -1
 
         if frame == 2:
             vis.add_geometry(point_list)
-            line_sets = []
+
             for box in bounding_boxes:
                 line_set = o3d.geometry.LineSet()
                 line_set.points = o3d.utility.Vector3dVector(np.asarray(box.T))
                 line_set.lines = o3d.utility.Vector2iVector(lines)
                 vis.add_geometry(line_set)
                 line_sets.append(line_set)
-            
-        for i, box in enumerate(bounding_boxes):
-            line_sets[i].points = o3d.utility.Vector3dVector(np.asarray(box.T))
-            vis.update_geometry(line_sets[i])
+        
+        if len(line_sets) != 0:    
+            for i, box in enumerate(bounding_boxes):
+                line_sets[i].points = o3d.utility.Vector3dVector(np.asarray(box.T))
+                vis.update_geometry(line_sets[i])
             
         vis.update_geometry(point_list)
-
+        
         for line_set in line_sets:
             vis.update_geometry(line_set)
         
