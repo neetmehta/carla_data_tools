@@ -1,7 +1,7 @@
 # Carla Data Generator - Generating Synthetic Data for Autonomous Driving
 
-#Table of Contents
-a
+## Table of Contents
+
 - [Project Overview](#project-overview)
 - [Getting Started](#getting-started)
 - [Data Generation](#data-generation)
