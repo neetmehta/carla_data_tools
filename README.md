@@ -1,6 +1,7 @@
 # Carla Data Generator - Generating Synthetic Data for Autonomous Driving
 
-##Table of Contents
+#Table of Contents
+
 - [Project Overview](#project-overview)
 - [Getting Started](#getting-started)
 - [Data Generation](#data-generation)
@@ -14,7 +15,7 @@ Generating data for training deep learning networks for autonomous driving task 
 
 This project is used to generate synthetic data for training different Deep learning models for autonomous driving tasks. This project support cameras and lidars and can generate annotaions for tasks such as 3D lidar object detection, monocular depth estimation, and semantic segmentation.
 
-Feel free to add any comments and suggestions.
+Feel free to put any comments and suggestions.
 
 ## Getting Started
 
