@@ -264,6 +264,8 @@ class LidarSensor(SensorBase):
 
     def retrive_data(self, frame_id, timeout):
         points, colors = super().retrive_data(frame_id, timeout)
+        self.pcd.points = o3d.utility.Vector3dVector(points)
+        self.pcd.colors = o3d.utility.Vector3dVector(colors)
         vehicles = self.world.get_actors().filter("vehicle.*")
         bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
             self.ego_vehicle,
@@ -276,9 +278,6 @@ class LidarSensor(SensorBase):
             box[0, :] *= -1
 
         if self.vis:
-            self.pcd.points = o3d.utility.Vector3dVector(points)
-            self.pcd.colors = o3d.utility.Vector3dVector(colors)
-
             if self.frame == 2:
                 self.vis.add_geometry(self.pcd)
 
