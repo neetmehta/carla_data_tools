@@ -1,9 +1,8 @@
 import glob
 import os
 import sys
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
+import random
+import queue
 
 try:
     sys.path.append(
@@ -21,14 +20,10 @@ except IndexError:
 
 import carla
 
-import random
-import time
-
-import yaml
-import queue
-
 
 class CarlaWorld:
+    """Carla world class
+    """
     def __init__(self, cfg=None) -> None:
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
         self.client = carla.Client("localhost", 2000)
@@ -54,6 +49,8 @@ class CarlaWorld:
         self.world.apply_settings(self._settings)
 
     def spawn_actors(self):
+        """spawns npc into the environment
+        """
         self.spawn_points = self.world.get_map().get_spawn_points()
         random.seed(0)
 

@@ -1,11 +1,8 @@
 import glob
 import os
 import sys
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
+import random
 
-from utils import process_rgb_image
 from sensor_manager import CameraSensor, LidarSensor
 
 try:
@@ -24,12 +21,6 @@ except IndexError:
 
 import carla
 
-import random
-import time
-
-import yaml
-import queue
-
 
 class EgoVehicle:
     def __init__(self, bp_lib, vehicle_cfg) -> None:
@@ -39,7 +30,7 @@ class EgoVehicle:
         self.vehicles_bp = self.blueprint_lib.find(f"vehicle.{vehicle}")
         self.num_cameras = 0
         for i in vehicle_cfg["sensors"]:
-            if i['sensor_type'] == 'RGBCamera':
+            if i["sensor_type"] == "RGBCamera":
                 self.num_cameras += 1
 
     def spwan_ego_vehicle(self, world):
@@ -58,15 +49,29 @@ class EgoVehicle:
         # Set initial camera translation
         sensors = self.vehicle_cfg["sensors"]
         self.sensors = []
-        
+
         cam_display_pos = 0
         for sensor_cfg in sensors:
             if sensor_cfg["sensor_type"] == "RGBCamera":
-                camera = CameraSensor(world, self.ego_vehicle, sensor_cfg, self.blueprint_lib, display_man, cam_display_pos, sensor_cfg['depth'], sensor_cfg['sem_seg'])
+                camera = CameraSensor(
+                    world,
+                    self.ego_vehicle,
+                    sensor_cfg,
+                    self.blueprint_lib,
+                    display_man,
+                    cam_display_pos,
+                    sensor_cfg["depth"],
+                    sensor_cfg["sem_seg"],
+                )
                 self.sensors.append(camera)
                 cam_display_pos += 1
-                
+
             if sensor_cfg["sensor_type"] == "LiDAR":
-                lidar = LidarSensor(world, self.ego_vehicle, sensor_cfg, self.blueprint_lib, enable_lidar_vis)
+                lidar = LidarSensor(
+                    world,
+                    self.ego_vehicle,
+                    sensor_cfg,
+                    self.blueprint_lib,
+                    enable_lidar_vis,
+                )
                 self.sensors.append(lidar)
-            
