@@ -8,8 +8,8 @@ sensors: [
              fov: 110,
              translation: [1,0,2],
              rotation: [0, 0, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
 
              {sensor_type: RGBCamera,

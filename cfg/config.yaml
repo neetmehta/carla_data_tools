@@ -2,7 +2,7 @@ fps: 10
 no_of_vehicles: 10
 synchronous: True
 
-out_dir: "D:\\WindowsNoEditor\\PythonAPI\\carla_data_tools"
+out_dir: "D:\\WindowsNoEditor\\PythonAPI\\carla_data_tools\\data"
 capture_frequency: 1
 sensor_preview: True
 capture_data: True

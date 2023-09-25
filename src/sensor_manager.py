@@ -27,7 +27,7 @@ try:
 except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
 
-from utils import process_rgb_image, process_depth_image, process_sem_seg_image, process_point_cloud, add_open3d_axis, is_empty
+from utils import process_rgb_image, process_depth_image, process_sem_seg_image, process_point_cloud, add_open3d_axis, is_empty, build_projection_matrix
 
 from bounding_box import ClientSideBoundingBoxes
 
@@ -98,6 +98,12 @@ class CameraSensor(SensorBase):
         self.rgb_camera = self.world.spawn_actor(camera_bp, self.transform, attach_to=self.ego_vehicle)
         self.rgb_camera.listen(self.queue.put)
         
+        self.cam_intrinsics = build_projection_matrix(self.sensor_cfg["image_size_x"], self.sensor_cfg["image_size_y"], self.sensor_cfg["fov"])
+        cam_2_world = np.array(self.rgb_camera.get_transform().get_matrix())
+        world_2_vehicle = np.array(self.ego_vehicle.get_transform().get_inverse_matrix())
+        self.cam_2_vehicle = cam_2_world @ world_2_vehicle
+        self.vehicle_2_cam = np.linalg.inv(self.cam_2_vehicle)
+        
         if self.depth:
             depth_camera_bp = bp_lib.find("sensor.camera.depth")
             depth_camera_bp.set_attribute("image_size_x", str(self.sensor_cfg["image_size_x"]))
@@ -119,12 +125,12 @@ class CameraSensor(SensorBase):
     def retrive_data(self, frame_id, timeout):
         display_resize = self.display_man.get_display_size()
         rgb_data = super().retrive_data(frame_id, timeout)
-        rgb_data = cv2.resize(rgb_data, display_resize)
-        rgb_data = cv2.cvtColor(rgb_data, cv2.COLOR_BGR2RGB)
+        rgb_data_copy = cv2.resize(rgb_data, display_resize)
+        rgb_data_copy = cv2.cvtColor(rgb_data_copy, cv2.COLOR_BGR2RGB)
         depth_data = None
         sem_seg_data = None
         if self.display_man:
-            self.rgb_surface = pygame.surfarray.make_surface(rgb_data.swapaxes(0, 1))
+            self.rgb_surface = pygame.surfarray.make_surface(rgb_data_copy.swapaxes(0, 1))
             self.render()
             
         if self.depth:
@@ -132,11 +138,13 @@ class CameraSensor(SensorBase):
                 depth_data = self.depth_queue.get(timeout=timeout)
                 if depth_data.frame == frame_id:
                     depth_data = process_depth_image(depth_data)
+                    break
         if self.sem_seg:
             while True:
                 sem_seg_data = self.sem_seg_queue.get(timeout=timeout)
                 if sem_seg_data.frame == frame_id:
                     sem_seg_data = process_sem_seg_image(sem_seg_data)
+                    break
                 
         return rgb_data, depth_data, sem_seg_data
     
@@ -240,4 +248,4 @@ class LidarSensor(SensorBase):
             time.sleep(0.005)
             self.frame += 1
             
-        return self.pcd
+        return self.pcd, bounding_boxes

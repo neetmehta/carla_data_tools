@@ -22,34 +22,33 @@ except IndexError:
 import carla
 
 
-def capture_data(frame_no, **kwargs):
+def capture_data(frame_no, out_dir, sensor_name, rgb=None, depth=None, semantic_mask=None, lidar_pc=None, bb=None):
     """captures the data and save it to the given folder
 
     Args:
         frame_no (int): Frame number in the simulation
     """
-    out_dir = kwargs.get("out_dir", os.path.join(os.getcwd(), "data"))
-    rgb = kwargs.get("rgb", None)
-    depth = kwargs.get("depth", None)
-    semantic_mask = kwargs.get("semantic", None)
-    lidar_pc = kwargs.get("point_cloud", None)
-    bb = kwargs.get("bounding_boxes", None)
 
-    if rgb:
-        os.makedirs(os.path.join(out_dir, "rgb_images"))
-        cv2.imwrite(os.path.join(out_dir, f"{frame_no}.jpg", rgb))
+    sensor_root = os.path.join(out_dir, sensor_name)
+    
+    if rgb is not None:
+        os.makedirs(os.path.join(sensor_root, "rgb_images"), exist_ok=True)
+        cv2.imwrite(os.path.join(sensor_root, "rgb_images", f"{frame_no}.jpg"), rgb)
 
-    if depth:
-        os.makedirs(os.path.join(out_dir, "depth"))
+    if depth is not None:
+        os.makedirs(os.path.join(sensor_root, "depth"), exist_ok=True)
+        np.save(os.path.join(sensor_root, "depth", f"{frame_no}.npy"), depth)
 
-    if semantic_mask:
-        os.makedirs(os.path.join(out_dir, "semantic_mask"))
+    if semantic_mask is not None:
+        os.makedirs(os.path.join(sensor_root, "semantic_mask"), exist_ok=True)
+        cv2.imwrite(os.path.join(sensor_root, "semantic_mask", f"{frame_no}.jpg"), semantic_mask)
 
-    if lidar_pc:
-        os.makedirs(os.path.join(out_dir, "lidar"))
+    if lidar_pc is not None:
+        os.makedirs(os.path.join(sensor_root, "lidar"), exist_ok=True)
+        o3d.io.write_point_cloud(os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), lidar_pc)
 
-    if bb:
-        os.makedirs(os.path.join(out_dir, "3d_bb"))
+    if bb is not None:
+        os.makedirs(os.path.join(sensor_root, "bb_labels"), exist_ok=True)
 
 
 def is_empty(pcd, box, threshold=10):
@@ -136,3 +135,11 @@ def process_point_cloud(point_cloud):
     points[:, :1] = -points[:, :1]
     
     return points, int_color
+
+def build_projection_matrix(w, h, fov):
+    focal = w / (2.0 * np.tan(fov * np.pi / 360.0))
+    K = np.identity(3)
+    K[0, 0] = K[1, 1] = focal
+    K[0, 2] = w / 2.0
+    K[1, 2] = h / 2.0
+    return K
