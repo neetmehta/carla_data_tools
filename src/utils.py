@@ -22,7 +22,16 @@ except IndexError:
 import carla
 
 
-def capture_data(frame_no, out_dir, sensor_name, rgb=None, depth=None, semantic_mask=None, lidar_pc=None, bb=None):
+def capture_data(
+    frame_no,
+    out_dir,
+    sensor_name,
+    rgb=None,
+    depth=None,
+    semantic_mask=None,
+    lidar_pc=None,
+    bb=None,
+):
     """captures the data and save it to the given folder
 
     Args:
@@ -30,7 +39,7 @@ def capture_data(frame_no, out_dir, sensor_name, rgb=None, depth=None, semantic_
     """
 
     sensor_root = os.path.join(out_dir, sensor_name)
-    
+
     if rgb is not None:
         os.makedirs(os.path.join(sensor_root, "rgb_images"), exist_ok=True)
         cv2.imwrite(os.path.join(sensor_root, "rgb_images", f"{frame_no}.jpg"), rgb)
@@ -41,11 +50,15 @@ def capture_data(frame_no, out_dir, sensor_name, rgb=None, depth=None, semantic_
 
     if semantic_mask is not None:
         os.makedirs(os.path.join(sensor_root, "semantic_mask"), exist_ok=True)
-        cv2.imwrite(os.path.join(sensor_root, "semantic_mask", f"{frame_no}.jpg"), semantic_mask)
+        cv2.imwrite(
+            os.path.join(sensor_root, "semantic_mask", f"{frame_no}.jpg"), semantic_mask
+        )
 
     if lidar_pc is not None:
         os.makedirs(os.path.join(sensor_root, "lidar"), exist_ok=True)
-        o3d.io.write_point_cloud(os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), lidar_pc)
+        o3d.io.write_point_cloud(
+            os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), lidar_pc
+        )
 
     if bb is not None:
         os.makedirs(os.path.join(sensor_root, "bb_labels"), exist_ok=True)
@@ -81,7 +94,6 @@ def retrive_data(sensor_queue, frame_id, timeout):
 
 
 def process_rgb_image(image):
-    print(f"rgb time {image.timestamp}")
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
     array = array[:, :, :3]
@@ -90,7 +102,6 @@ def process_rgb_image(image):
 
 
 def process_depth_image(image):
-    print(f"depth time {image.timestamp}")
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
     array = array.astype(np.float32)
@@ -100,7 +111,6 @@ def process_depth_image(image):
 
 
 def process_sem_seg_image(image):
-    print(f"sem time {image.timestamp}")
     image.convert(carla.ColorConverter.CityScapesPalette)
     array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     array = np.reshape(array, (image.height, image.width, 4))
@@ -110,7 +120,6 @@ def process_sem_seg_image(image):
 
 
 def process_point_cloud(point_cloud):
-
     # Auxilliary code for colormaps and axes
     VIRIDIS = np.array(cm.get_cmap("plasma").colors)
     VID_RANGE = np.linspace(0.0, 1.0, VIRIDIS.shape[0])
@@ -133,8 +142,9 @@ def process_point_cloud(point_cloud):
     points = data[:, :-1]
 
     points[:, :1] = -points[:, :1]
-    
+
     return points, int_color
+
 
 def build_projection_matrix(w, h, fov):
     focal = w / (2.0 * np.tan(fov * np.pi / 360.0))
