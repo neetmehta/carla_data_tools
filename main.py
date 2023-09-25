@@ -2,12 +2,19 @@ from world import CarlaWorld
 from ego_vehicle import EgoVehicle
 import yaml
 import cv2
-import numpy as np
 import glob
 import os
 import sys
-import open3d as o3d
-import time
+import math
+
+try:
+    import pygame
+    from pygame.locals import K_ESCAPE
+    from pygame.locals import K_q
+except ImportError:
+    raise RuntimeError('cannot import pygame, make sure pygame package is installed')
+
+from pygame_display import DisplayManager
 
 try:
     sys.path.append(
@@ -24,136 +31,73 @@ except IndexError:
     pass
 import carla
 
-from utils import (
-    process_rgb_image,
-    retrive_data,
-    process_depth_image,
-    process_sem_seg_image,
-    process_point_cloud,
-    add_open3d_axis,
-    is_empty,
-)
-from bounding_box import ClientSideBoundingBoxes
-
-lines = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 0],
-    [4, 5],
-    [5, 6],
-    [6, 7],
-    [7, 4],
-    [0, 4],
-    [1, 5],
-    [2, 6],
-    [3, 7],
-]
-
 
 def main():
     """
-    Main loop
+    Main function
     """
     try:
-        with open("cfg\\vehicle_cfg.yaml", "r") as f:
-            vehicle_cfg = yaml.safe_load(f)
-
-        with open("cfg\\config.yaml", "r") as f:
-            cfg = yaml.safe_load(f)
-
+        with open('cfg\\vehicle_cfg.yaml', 'r') as f:
+            vehicle_cfg = yaml.safe_load(f) 
+            
+        with open('cfg\\config.yaml', 'r') as f:
+            cfg = yaml.safe_load(f) 
+            
         carla_world = CarlaWorld(cfg)
 
         bp_lib = carla_world.world.get_blueprint_library()
         ego_vehicle = EgoVehicle(bp_lib, vehicle_cfg)
         ego_vehicle.spwan_ego_vehicle(carla_world.world)
-        ego_vehicle.sensor_setup(carla_world.world)
-        static_bboxes = carla_world.world.get_level_bbs(carla.CityObjectLabel.Car)
+        display_man = None
+        if cfg['sensor_preview']:
+            grid_size = [math.ceil(ego_vehicle.num_cameras/3), 3]
+            display_man = DisplayManager(grid_size, window_size=[1280, 720])
+
+        ego_vehicle.sensor_setup(carla_world.world, display_man, enable_lidar_vis=True)
+
         carla_world.spawn_actors()
         ego_vehicle.ego_vehicle.set_autopilot(True)
-        for sensor_name, sensor in ego_vehicle.sensors.items():
-            sensor.listen(ego_vehicle.sensors_queues[sensor_name].put)
+
         carla_world.set_synchronous()
-        point_list = o3d.geometry.PointCloud()
 
-        # Open3D visualiser for LIDAR and RADAR
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(
-            window_name="Carla Lidar", width=960, height=540, left=480, top=270
-        )
-        vis.get_render_option().background_color = [1.0, 1.0, 1.0]
-        vis.get_render_option().point_size = 1
-        vis.get_render_option().show_coordinate_frame = True
-        add_open3d_axis(vis)
-        frame = 0
-        line_sets = []
-        empty_line_set = o3d.geometry.LineSet()
-        empty_points = empty_line_set.points
+        out_dir = cfg['out_dir']
+        capture_frequency = cfg['capture_frequency']
+        simulation_frequency = cfg['fps']
+        delta_tick = int(simulation_frequency/capture_frequency)
+        assert delta_tick > 0, "please reduce capture_frequency"
 
+        call_exit = False
+
+        # Main loop
         while True:
-            data = {}
-            frame_id = carla_world.tick()
-            for sensor_name, sensor in ego_vehicle.sensors.items():
-                data[sensor_name] = retrive_data(
-                    ego_vehicle.sensors_queues[sensor_name], frame_id, 2.0
-                )
+            frame_id = carla_world.tick()    
 
-            rgb_array = process_rgb_image(data["rgb_camera1"])
-            sem_seg_array = process_sem_seg_image(data["sem_seg_camera1"])
-            depth_array = process_depth_image(data["depth_camera1"])
-            process_point_cloud(data["lidar1"], point_list)
-            vehicles = carla_world.world.get_actors().filter("vehicle.*")
+            
+            # Visualization
+            if display_man:
+                for sensor in ego_vehicle.sensors:
+                    if sensor.sensor_type == 'RGBCamera':
+                        _, _, _ = sensor.retrive_data(frame_id, 2.0)
+                        
+                    if sensor.sensor_type == 'LiDAR':
+                        _ = sensor.retrive_data(frame_id, 2.0)
+                        
+            pygame.display.flip()
 
-            bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
-                ego_vehicle.ego_vehicle,
-                vehicles,
-                ego_vehicle.sensors["lidar1"],
-                additional_bb=static_bboxes,
-            )
-            for box in bounding_boxes:
-                box[0, :] *= -1
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    call_exit = True
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == K_ESCAPE or event.key == K_q:
+                        call_exit = True
+                        break
 
-            if frame == 2:
-                vis.add_geometry(point_list)
-
-                for box in bounding_boxes:
-                    line_set = o3d.geometry.LineSet()
-                    line_set.points = o3d.utility.Vector3dVector(np.asarray(box.T))
-                    line_set.lines = o3d.utility.Vector2iVector(lines)
-                    vis.add_geometry(line_set)
-                    line_sets.append(line_set)
-
-            if len(line_sets) != 0:
-                for i, box in enumerate(bounding_boxes):
-                    if is_empty(
-                        point_list, box, threshold=cfg["vehicle_detection_threshold"]
-                    ):
-                        line_sets[i].points = empty_points
-                        vis.update_geometry(line_sets[i])
-                        continue
-                    line_sets[i].points = o3d.utility.Vector3dVector(np.asarray(box.T))
-                    vis.update_geometry(line_sets[i])
-
-            vis.update_geometry(point_list)
-
-            for line_set in line_sets:
-                vis.update_geometry(line_set)
-
-            vis.poll_events()
-            vis.update_renderer()
-
-            # # This can fix Open3D jittering issues:
-            time.sleep(0.005)
-            frame += 1
-            cv2.imshow("RGB Camera", rgb_array)
-            cv2.imshow("Depth Camera", depth_array)
-            cv2.imshow("Semantic Camera", sem_seg_array)
-
-            # Quit if user presses 'q'
-            if cv2.waitKey(1) == ord("q"):
-                cv2.destroyAllWindows()
-                vis.destroy_window()
-
+            if call_exit:
+                pygame.display.quit()
+                for sensor in ego_vehicle.sensors:
+                    if sensor.sensor_type == 'LiDAR' and sensor.vis:
+                        sensor.vis.destroy_window()
+                        
                 break
 
     except Exception as e:
@@ -163,9 +107,6 @@ def main():
         print("destroying actors")
         carla_world.restore()
         carla_world.destroy_actors()
-        cv2.destroyAllWindows()
-        vis.destroy_window()
-
 
 if __name__ == "__main__":
     main()

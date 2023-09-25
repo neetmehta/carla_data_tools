@@ -2,7 +2,7 @@ fps: 10
 no_of_vehicles: 10
 synchronous: True
 
-vehicle_detection_threshold: 20
-
 out_dir: "D:\\WindowsNoEditor\\PythonAPI\\carla_data_tools"
 capture_frequency: 1
+sensor_preview: True
+capture_data: True

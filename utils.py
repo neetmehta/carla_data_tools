@@ -110,8 +110,8 @@ def process_sem_seg_image(image):
     return array
 
 
-def process_point_cloud(point_cloud, point_list):
-    print(f"pc time {point_cloud.timestamp}")
+def process_point_cloud(point_cloud):
+
     # Auxilliary code for colormaps and axes
     VIRIDIS = np.array(cm.get_cmap("plasma").colors)
     VID_RANGE = np.linspace(0.0, 1.0, VIRIDIS.shape[0])
@@ -134,7 +134,5 @@ def process_point_cloud(point_cloud, point_list):
     points = data[:, :-1]
 
     points[:, :1] = -points[:, :1]
-
-    point_list.points = o3d.utility.Vector3dVector(points)
-    point_list.colors = o3d.utility.Vector3dVector(int_color)
-    return point_list
+    
+    return points, int_color
