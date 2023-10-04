@@ -67,7 +67,7 @@ sensors: [
              {sensor_type: LiDAR,
              sensor_name: lidar1,
              channels: 64,
-             points_per_second: 1_30_000,
+             points_per_second: 5_30_000,
              rotation_frequency: 10,
              noise_stddev: 0.2,
              upper_fov: 2.0,
@@ -77,7 +77,7 @@ sensors: [
              dropoff_general_rate: 0.1,
              dropoff_intensity_limit: 0.8,
              dropoff_zero_intensity: 0.4,
-             vehicle_detection_threshold: 20,
+             vehicle_detection_threshold: 5,
              translation: [0,0,1.73],
              rotation: [0, -180, 0]}
 ]

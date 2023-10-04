@@ -53,7 +53,7 @@ def main():
         display_man = None
         if cfg["sensor_preview"]:
             grid_size = [math.ceil(ego_vehicle.num_cameras / 3), 3]
-            display_man = DisplayManager(grid_size, window_size=[1280, 720])
+            display_man = DisplayManager(grid_size, window_size=[1920, 1080])
 
         ego_vehicle.sensor_setup(
             carla_world.world, display_man, enable_lidar_vis=cfg["sensor_preview"]
