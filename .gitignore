@@ -1,4 +1,5 @@
 # Byte-compiled / optimized / DLL files
+data/
 Sensors_code/
 __pycache__/
 *.py[cod]
@@ -25,6 +26,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
 MANIFEST
 
 # PyInstaller

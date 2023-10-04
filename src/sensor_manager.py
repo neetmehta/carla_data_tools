@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+import matplotlib.pyplot as plt 
 
 try:
     sys.path.append(
@@ -24,6 +25,7 @@ import numpy as np
 import cv2
 import open3d as o3d
 
+from scipy.spatial.transform import Rotation
 from queue import Queue
 
 try:
@@ -41,9 +43,12 @@ from utils import (
     add_open3d_axis,
     is_empty,
     build_projection_matrix,
+    get_image_point
 )
 
 from bounding_box import ClientSideBoundingBoxes
+from collections import namedtuple
+BoundingBox = namedtuple("BoundingBox", ['center', 'extent', 'yaw'])
 
 lines = [
     [0, 1],
@@ -60,6 +65,7 @@ lines = [
     [3, 7],
 ]
 
+edges = [[0,1], [1,3], [3,2], [2,0], [0,4], [4,5], [5,1], [5,7], [7,6], [6,4], [6,2], [7,3]]
 
 class SensorBase:
     def __init__(self, world, ego_vehicle, sensor_cfg) -> None:
@@ -131,12 +137,6 @@ class CameraSensor(SensorBase):
             self.sensor_cfg["image_size_y"],
             self.sensor_cfg["fov"],
         )
-        cam_2_world = np.array(self.rgb_camera.get_transform().get_matrix())
-        world_2_vehicle = np.array(
-            self.ego_vehicle.get_transform().get_inverse_matrix()
-        )
-        self.cam_2_vehicle = cam_2_world @ world_2_vehicle
-        self.vehicle_2_cam = np.linalg.inv(self.cam_2_vehicle)
 
         if self.depth:
             depth_camera_bp = bp_lib.find("sensor.camera.depth")
@@ -170,18 +170,8 @@ class CameraSensor(SensorBase):
 
     def retrive_data(self, frame_id, timeout):
         rgb_data = super().retrive_data(frame_id, timeout)
-
         depth_data = None
         sem_seg_data = None
-        if self.display_man is not None:
-            display_resize = self.display_man.get_display_size()
-            rgb_data_copy = cv2.resize(rgb_data, display_resize)
-            rgb_data_copy = cv2.cvtColor(rgb_data_copy, cv2.COLOR_BGR2RGB)
-            self.rgb_surface = pygame.surfarray.make_surface(
-                rgb_data_copy.swapaxes(0, 1)
-            )
-            self.render()
-
         if self.depth:
             while True:
                 depth_data = self.depth_queue.get(timeout=timeout)
@@ -194,8 +184,80 @@ class CameraSensor(SensorBase):
                 if sem_seg_data.frame == frame_id:
                     sem_seg_data = process_sem_seg_image(sem_seg_data)
                     break
+        rgb_data_copy = rgb_data.copy()
+        rgb_data_copy, bb_2d = self.draw_cam_bbs(rgb_data_copy, depth_data)
 
-        return rgb_data, depth_data, sem_seg_data
+        if self.display_man is not None:
+            display_resize = self.display_man.get_display_size()
+            rgb_data_copy = cv2.resize(rgb_data_copy, display_resize)
+            rgb_data_copy = cv2.cvtColor(rgb_data_copy, cv2.COLOR_BGR2RGB)
+            self.rgb_surface = pygame.surfarray.make_surface(
+                rgb_data_copy.swapaxes(0, 1)
+            )
+            self.render()
+
+        return rgb_data, depth_data, sem_seg_data, bb_2d
+
+    def draw_cam_bbs(self, img, depth):
+        world_2_camera = np.array(self.rgb_camera.get_transform().get_inverse_matrix())
+        K = self.cam_intrinsics
+        vehicles = list(self.world.get_actors().filter("vehicle.*"))
+        # vehicles = [v.bounding_box for v in vehicles]
+        static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car) 
+        # vehicles.extend(static_bboxes)
+        bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
+            self.ego_vehicle,
+            vehicles,
+            self.rgb_camera,
+            additional_bb=static_bboxes,
+        )
+        bb_2d = []
+        for bb in bounding_boxes:
+            location = carla.Location(*list(np.array(bb).mean(1)))
+            # Filter for the self.ego_vehicles within 50m
+
+            # Calculate the dot product between the forward vector
+            # of the self.ego_vehicle and the vector between the self.ego_vehicle
+            # and the other self.ego_vehicle. We threshold this dot product
+            # to limit to drawing bounding boxes IN FRONT OF THE CAMERA
+            forward_vec = self.rgb_camera.get_transform().get_forward_vector()
+            world_location = np.linalg.inv(world_2_camera) @ np.array([location.x, location.y, location.z, 1]).T
+            world_location = carla.Location(*list(world_location)[:-1])
+            ray = world_location - self.rgb_camera.get_transform().location
+            if location.x>0 and location.x<120:
+
+                verts = [v for v in np.array(bb.T)]
+                x_max = -10000
+                x_min = 10000
+                y_max = -10000
+                y_min = 10000
+
+                for vert in verts:
+                    p = get_image_point(vert, K, world_2_camera)
+                    # Find the rightmost vertex
+                    if p[0] > x_max:
+                        x_max = p[0]
+                    # Find the leftmost vertex
+                    if p[0] < x_min:
+                        x_min = p[0]
+                    # Find the highest vertex
+                    if p[1] > y_max:
+                        y_max = p[1]
+                    # Find the lowest  vertex
+                    if p[1] < y_min:
+                        y_min = p[1]
+                
+                if y_min>0 and y_max<512 and x_min>0 and x_max<1382:
+                    if depth is not None:
+                        mean_depth = depth[int(y_min):int(y_max), int(x_min):int(x_max)].mean()*1000  
+                        if abs(mean_depth - location.distance(carla.Transform().location)) <= 20 and forward_vec.dot(ray)>1: 
+                            cv2.line(img, (int(x_min),int(y_min)), (int(x_max),int(y_min)), (0,0,255, 255), 1)
+                            cv2.line(img, (int(x_min),int(y_max)), (int(x_max),int(y_max)), (0,0,255, 255), 1)
+                            cv2.line(img, (int(x_min),int(y_min)), (int(x_min),int(y_max)), (0,0,255, 255), 1)
+                            cv2.line(img, (int(x_max),int(y_min)), (int(x_max),int(y_max)), (0,0,255, 255), 1)
+                            bb_2d.append((x_min, y_min, x_max, y_max))
+
+        return img, bb_2d
 
     def render(self):
         if self.rgb_surface is not None:
@@ -262,7 +324,7 @@ class LidarSensor(SensorBase):
         )
         self.lidar.listen(self.queue.put)
 
-    def retrive_data(self, frame_id, timeout):
+    def retrive_data(self, frame_id, timeout, camera=None):
         points, colors = super().retrive_data(frame_id, timeout)
         self.pcd.points = o3d.utility.Vector3dVector(points)
         self.pcd.colors = o3d.utility.Vector3dVector(colors)
@@ -273,6 +335,7 @@ class LidarSensor(SensorBase):
             self.lidar,
             additional_bb=self.static_bboxes,
         )
+        bbs = []
 
         for box in bounding_boxes:
             box[0, :] *= -1
@@ -302,6 +365,11 @@ class LidarSensor(SensorBase):
                         np.asarray(box.T)
                     )
                     self.vis.update_geometry(self.line_sets[i])
+                    obb = o3d.geometry.OrientedBoundingBox.create_from_points(o3d.utility.Vector3dVector(np.array(box.T)))
+                    r = Rotation.from_matrix(obb.R.copy())
+                    _, _, yaw = r.as_euler('xyz', degrees=True)
+                    bb = BoundingBox(obb.center.copy(), obb.extent.copy(), np.deg2rad(yaw))
+                    bbs.append(bb)
 
             self.vis.update_geometry(self.pcd)
 
@@ -314,4 +382,4 @@ class LidarSensor(SensorBase):
             time.sleep(0.005)
             self.frame += 1
 
-        return self.pcd, bounding_boxes
+        return self.pcd, bbs

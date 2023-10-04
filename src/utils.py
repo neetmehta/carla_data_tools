@@ -30,7 +30,8 @@ def capture_data(
     depth=None,
     semantic_mask=None,
     lidar_pc=None,
-    bb=None,
+    bbs=None,
+    bb_2d=None
 ):
     """captures the data and save it to the given folder
 
@@ -60,8 +61,28 @@ def capture_data(
             os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), lidar_pc
         )
 
-    if bb is not None:
+    if bbs is not None:
         os.makedirs(os.path.join(sensor_root, "bb_labels"), exist_ok=True)
+        with open(os.path.join(sensor_root, "bb_labels", f"{frame_no}.txt"), 'w') as f:
+            lines = []
+            for bb in bbs:
+                line = f"Vehicle {0.0} {0} {0.0} {0} {0} {0} {0} {bb.extent[-1]:.{2}f} {bb.extent[-2]:.{2}f} {bb.extent[-3]:.{2}f} {bb.center[0]:.{2}f} {bb.center[1]:.{2}f} {bb.center[2]:.{2}f} {bb.yaw:.{2}f}\n"
+                lines.append(line)
+                
+            f.writelines(lines)
+            f.close()
+            
+    if bb_2d is not None:
+        os.makedirs(os.path.join(sensor_root, "2d_bb_labels"), exist_ok=True)
+        with open(os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.txt"), 'w') as f:
+            lines = []
+            for bb in bb_2d:
+                line = f"Vehicle {bb[0]:.{2}f} {bb[1]:.{2}f} {bb[2]:.{2}f} {bb[3]:.{2}f}\n"
+                lines.append(line)
+                
+            f.writelines(lines)
+            f.close()
+                
 
 
 def is_empty(pcd, box, threshold=10):
@@ -153,3 +174,25 @@ def build_projection_matrix(w, h, fov):
     K[0, 2] = w / 2.0
     K[1, 2] = h / 2.0
     return K
+
+def get_image_point(loc, K, w2c, not_transform=True):
+    # Calculate 2D projection of 3D coordinate
+
+    # Format the input coordinate (loc is a carla.Position object)
+    point = np.array([loc[0], loc[1], loc[2], 1])
+    # transform to camera coordinates
+    if not not_transform:
+        point_camera = np.dot(w2c, point)
+
+    # New we must change from UE4's coordinate system to an "standard"
+    # (x, y ,z) -> (y, -z, x)
+    # and we remove the fourth componebonent also
+    point_camera = [loc[1], -loc[2], loc[0]]
+
+    # now project 3D->2D using the camera matrix
+    point_img = np.dot(K, point_camera)
+    # normalize
+    point_img[0] /= point_img[2]
+    point_img[1] /= point_img[2]
+
+    return point_img[0:2]

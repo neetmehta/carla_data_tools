@@ -4,5 +4,5 @@ synchronous: True
 
 out_dir: "D:\\WindowsNoEditor\\PythonAPI\\carla_data_tools\\data"
 capture_frequency: 1
-sensor_preview: False
+sensor_preview: True
 capture_data: True
