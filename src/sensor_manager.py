@@ -1,7 +1,7 @@
 import glob
 import os
 import sys
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 
 try:
     sys.path.append(
@@ -43,12 +43,13 @@ from utils import (
     add_open3d_axis,
     is_empty,
     build_projection_matrix,
-    get_image_point
+    get_image_point,
 )
 
 from bounding_box import ClientSideBoundingBoxes
 from collections import namedtuple
-BoundingBox = namedtuple("BoundingBox", ['center', 'extent', 'yaw'])
+
+BoundingBox = namedtuple("BoundingBox", ["center", "extent", "yaw"])
 
 lines = [
     [0, 1],
@@ -65,7 +66,21 @@ lines = [
     [3, 7],
 ]
 
-edges = [[0,1], [1,3], [3,2], [2,0], [0,4], [4,5], [5,1], [5,7], [7,6], [6,4], [6,2], [7,3]]
+edges = [
+    [0, 1],
+    [1, 3],
+    [3, 2],
+    [2, 0],
+    [0, 4],
+    [4, 5],
+    [5, 1],
+    [5, 7],
+    [7, 6],
+    [6, 4],
+    [6, 2],
+    [7, 3],
+]
+
 
 class SensorBase:
     def __init__(self, world, ego_vehicle, sensor_cfg) -> None:
@@ -203,7 +218,7 @@ class CameraSensor(SensorBase):
         K = self.cam_intrinsics
         vehicles = list(self.world.get_actors().filter("vehicle.*"))
         # vehicles = [v.bounding_box for v in vehicles]
-        static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car) 
+        static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car)
         # vehicles.extend(static_bboxes)
         bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
             self.ego_vehicle,
@@ -221,11 +236,13 @@ class CameraSensor(SensorBase):
             # and the other self.ego_vehicle. We threshold this dot product
             # to limit to drawing bounding boxes IN FRONT OF THE CAMERA
             forward_vec = self.rgb_camera.get_transform().get_forward_vector()
-            world_location = np.linalg.inv(world_2_camera) @ np.array([location.x, location.y, location.z, 1]).T
+            world_location = (
+                np.linalg.inv(world_2_camera)
+                @ np.array([location.x, location.y, location.z, 1]).T
+            )
             world_location = carla.Location(*list(world_location)[:-1])
             ray = world_location - self.rgb_camera.get_transform().location
-            if location.x>0 and location.x<120:
-
+            if location.x > 0 and location.x < 120:
                 verts = [v for v in np.array(bb.T)]
                 x_max = -10000
                 x_min = 10000
@@ -246,15 +263,51 @@ class CameraSensor(SensorBase):
                     # Find the lowest  vertex
                     if p[1] < y_min:
                         y_min = p[1]
-                
-                if y_min>0 and y_max<512 and x_min>0 and x_max<1382:
+
+                if y_min > 0 and y_max < 512 and x_min > 0 and x_max < 1382:
                     if depth is not None:
-                        mean_depth = depth[int(y_min):int(y_max), int(x_min):int(x_max)].mean()*1000  
-                        if abs(mean_depth - location.distance(carla.Transform().location)) <= 20 and forward_vec.dot(ray)>1: 
-                            cv2.line(img, (int(x_min),int(y_min)), (int(x_max),int(y_min)), (0,0,255, 255), 1)
-                            cv2.line(img, (int(x_min),int(y_max)), (int(x_max),int(y_max)), (0,0,255, 255), 1)
-                            cv2.line(img, (int(x_min),int(y_min)), (int(x_min),int(y_max)), (0,0,255, 255), 1)
-                            cv2.line(img, (int(x_max),int(y_min)), (int(x_max),int(y_max)), (0,0,255, 255), 1)
+                        mean_depth = (
+                            depth[
+                                int(y_min) : int(y_max), int(x_min) : int(x_max)
+                            ].mean()
+                            * 1000
+                        )
+                        if (
+                            abs(
+                                mean_depth
+                                - location.distance(carla.Transform().location)
+                            )
+                            <= 20
+                            and forward_vec.dot(ray) > 1
+                        ):
+                            cv2.line(
+                                img,
+                                (int(x_min), int(y_min)),
+                                (int(x_max), int(y_min)),
+                                (0, 0, 255, 255),
+                                1,
+                            )
+                            cv2.line(
+                                img,
+                                (int(x_min), int(y_max)),
+                                (int(x_max), int(y_max)),
+                                (0, 0, 255, 255),
+                                1,
+                            )
+                            cv2.line(
+                                img,
+                                (int(x_min), int(y_min)),
+                                (int(x_min), int(y_max)),
+                                (0, 0, 255, 255),
+                                1,
+                            )
+                            cv2.line(
+                                img,
+                                (int(x_max), int(y_min)),
+                                (int(x_max), int(y_max)),
+                                (0, 0, 255, 255),
+                                1,
+                            )
                             bb_2d.append((x_min, y_min, x_max, y_max))
 
         return img, bb_2d
@@ -365,10 +418,14 @@ class LidarSensor(SensorBase):
                         np.asarray(box.T)
                     )
                     self.vis.update_geometry(self.line_sets[i])
-                    obb = o3d.geometry.OrientedBoundingBox.create_from_points(o3d.utility.Vector3dVector(np.array(box.T)))
+                    obb = o3d.geometry.OrientedBoundingBox.create_from_points(
+                        o3d.utility.Vector3dVector(np.array(box.T))
+                    )
                     r = Rotation.from_matrix(obb.R.copy())
-                    _, _, yaw = r.as_euler('xyz', degrees=True)
-                    bb = BoundingBox(obb.center.copy(), obb.extent.copy(), np.deg2rad(yaw))
+                    _, _, yaw = r.as_euler("xyz", degrees=True)
+                    bb = BoundingBox(
+                        obb.center.copy(), obb.extent.copy(), np.deg2rad(yaw)
+                    )
                     bbs.append(bb)
 
             self.vis.update_geometry(self.pcd)

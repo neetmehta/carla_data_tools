@@ -31,7 +31,7 @@ def capture_data(
     semantic_mask=None,
     lidar_pc=None,
     bbs=None,
-    bb_2d=None
+    bb_2d=None,
 ):
     """captures the data and save it to the given folder
 
@@ -63,26 +63,29 @@ def capture_data(
 
     if bbs is not None:
         os.makedirs(os.path.join(sensor_root, "bb_labels"), exist_ok=True)
-        with open(os.path.join(sensor_root, "bb_labels", f"{frame_no}.txt"), 'w') as f:
+        with open(os.path.join(sensor_root, "bb_labels", f"{frame_no}.txt"), "w") as f:
             lines = []
             for bb in bbs:
                 line = f"Vehicle {0.0} {0} {0.0} {0} {0} {0} {0} {bb.extent[-1]:.{2}f} {bb.extent[-2]:.{2}f} {bb.extent[-3]:.{2}f} {bb.center[0]:.{2}f} {bb.center[1]:.{2}f} {bb.center[2]:.{2}f} {bb.yaw:.{2}f}\n"
                 lines.append(line)
-                
+
             f.writelines(lines)
             f.close()
-            
+
     if bb_2d is not None:
         os.makedirs(os.path.join(sensor_root, "2d_bb_labels"), exist_ok=True)
-        with open(os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.txt"), 'w') as f:
+        with open(
+            os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.txt"), "w"
+        ) as f:
             lines = []
             for bb in bb_2d:
-                line = f"Vehicle {bb[0]:.{2}f} {bb[1]:.{2}f} {bb[2]:.{2}f} {bb[3]:.{2}f}\n"
+                line = (
+                    f"Vehicle {bb[0]:.{2}f} {bb[1]:.{2}f} {bb[2]:.{2}f} {bb[3]:.{2}f}\n"
+                )
                 lines.append(line)
-                
+
             f.writelines(lines)
             f.close()
-                
 
 
 def is_empty(pcd, box, threshold=10):
@@ -174,6 +177,7 @@ def build_projection_matrix(w, h, fov):
     K[0, 2] = w / 2.0
     K[1, 2] = h / 2.0
     return K
+
 
 def get_image_point(loc, K, w2c, not_transform=True):
     # Calculate 2D projection of 3D coordinate

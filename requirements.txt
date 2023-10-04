@@ -1,6 +1,11 @@
-open3d
-numpy
-pygame
-matplotlib
-opencv-python
-pyyaml
+carla==0.9.14
+matplotlib==3.5.3
+numpy==1.24.1
+open3d==0.17.0
+opencv_python==4.6.0.66
+opencv_python_headless==4.6.0.66
+pygame==2.4.0
+PyYAML==6.0
+PyYAML==6.0.1
+scipy==1.9.0
+~pencv_python==4.6.0.66
