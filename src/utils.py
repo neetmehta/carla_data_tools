@@ -131,7 +131,7 @@ def process_depth_image(image):
     array = array.astype(np.float32)
     normalized_depth = np.dot(array[:, :, :3], [65536.0, 256.0, 1.0])
     normalized_depth /= 16777215.0  # (256.0 * 256.0 * 256.0 - 1.0)
-    return normalized_depth
+    return normalized_depth * 1000
 
 
 def process_sem_seg_image(image):

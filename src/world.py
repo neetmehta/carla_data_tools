@@ -27,8 +27,8 @@ class CarlaWorld:
     def __init__(self, cfg=None) -> None:
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
         self.client = carla.Client("localhost", 2000)
-        self.client.set_timeout(3.0)
-        self.world = self.client.get_world()
+        self.client.set_timeout(10.0)
+        self.world = self.client.load_world(cfg['map'])
         self.ego_vehicle = None
         self.world_queue = queue.Queue()
         self._settings = None

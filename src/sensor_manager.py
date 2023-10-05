@@ -264,14 +264,16 @@ class CameraSensor(SensorBase):
                     if p[1] < y_min:
                         y_min = p[1]
 
-                if y_min > 0 and y_max < 512 and x_min > 0 and x_max < 1382:
+                if (
+                    y_min > 0
+                    and y_max < self.sensor_cfg["image_size_y"]
+                    and x_min > 0
+                    and x_max < self.sensor_cfg["image_size_x"]
+                ):
                     if depth is not None:
-                        mean_depth = (
-                            depth[
-                                int(y_min) : int(y_max), int(x_min) : int(x_max)
-                            ].mean()
-                            * 1000
-                        )
+                        mean_depth = depth[
+                            int(y_min) : int(y_max), int(x_min) : int(x_max)
+                        ].mean()
                         if (
                             abs(
                                 mean_depth
