@@ -1,5 +1,5 @@
 # Carla Data Generator - Generating Synthetic Data for Autonomous Driving
-<img src="assets/output.gif" alt="drawing" width="1000"/>
+
 
 ## Table of Contents
 
@@ -13,6 +13,8 @@
 ## Project Overview
 
 Generating data for training deep learning networks for autonomous driving task is time consuming and expensive process. Annotating that data is yet another challenge. Annotating frames by human is not only time consuming and expensive process but also humans are not a perfect annotators. To overcome this challenges, CARLA has been developed from the ground up to support development, training, and validation of autonomous driving systems. In addition to open-source code and protocols, CARLA has provided open digital assets (urban layouts, buildings, vehicles) that were created for this purpose and can be used freely. The simulation platform supports flexible specification of sensor suites, environmental conditions, full control of all static and dynamic actors, maps generation and much more.
+
+<img src="assets/output.gif" alt="drawing" width="1000"/>
 
 This project is used to generate synthetic data for training different Deep learning models for autonomous driving tasks. This project support cameras and lidars and can generate annotaions for tasks such as 3D lidar object detection, monocular depth estimation, and semantic segmentation.
 
