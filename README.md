@@ -1,5 +1,6 @@
 # Carla Data Generator - Generating Synthetic Data for Autonomous Driving
 <img src="assets/output.gif" alt="drawing" width="1000"/>
+
 ## Table of Contents
 
 - [Project Overview](#project-overview)
