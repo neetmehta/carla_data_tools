@@ -242,7 +242,7 @@ class CameraSensor(SensorBase):
             )
             world_location = carla.Location(*list(world_location)[:-1])
             ray = world_location - self.rgb_camera.get_transform().location
-            if location.x > -0.5 and location.x < 120:
+            if location.x >= 0 and location.x < 120:
                 verts = [v for v in np.array(bb.T)]
                 x_max = -10000
                 x_min = 10000
@@ -320,14 +320,14 @@ class CameraSensor(SensorBase):
             self.display_man.display.blit(self.rgb_surface, offset)
 
     def destroy(self):
-        self.rgb_camera.stop()
+        # self.rgb_camera.stop()
         self.rgb_camera.destroy()
         if self.depth:
-            self.depth_camera.stop()
+            # self.depth_camera.stop()
             self.depth_camera.destroy()
 
         if self.sem_seg:
-            self.sem_seg_camera.stop()
+            # self.sem_seg_camera.stop()
             self.sem_seg_camera.destroy()
 
 
@@ -461,5 +461,5 @@ class LidarSensor(SensorBase):
         return self.pcd, bbs, self.pcd_save
 
     def destroy(self):
-        self.lidar.stop()
+        # self.lidar.stop()
         self.lidar.destroy()
