@@ -57,7 +57,7 @@ def capture_data(
 
     if lidar_pc is not None:
         os.makedirs(os.path.join(sensor_root, "lidar"), exist_ok=True)
-        o3d.io.write_point_cloud(
+        o3d.t.io.write_point_cloud(
             os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), lidar_pc
         )
 
@@ -167,7 +167,7 @@ def process_point_cloud(point_cloud):
 
     points[:, :1] = -points[:, :1]
 
-    return points, int_color
+    return points, int_color, intensity
 
 
 def build_projection_matrix(w, h, fov):

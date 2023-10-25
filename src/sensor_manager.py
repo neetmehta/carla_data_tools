@@ -348,6 +348,7 @@ class LidarSensor(SensorBase):
         self.static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car)
         self.frame = 0
         self.pcd = o3d.geometry.PointCloud()
+        self.pcd_save = o3d.t.geometry.PointCloud()
         self.line_sets = []
 
     def init_sensor(self, bp_lib):
@@ -380,7 +381,12 @@ class LidarSensor(SensorBase):
         self.lidar.listen(self.queue.put)
 
     def retrive_data(self, frame_id, timeout, camera=None):
-        points, colors = super().retrive_data(frame_id, timeout)
+        points, colors, intensity = super().retrive_data(frame_id, timeout)
+        intensity = [[i] for i in intensity]
+        
+        self.pcd_save.point["positions"] = o3d.core.Tensor(points)
+        self.pcd_save.point["intensities"] = o3d.core.Tensor(intensity)
+
         self.pcd.points = o3d.utility.Vector3dVector(points)
         self.pcd.colors = o3d.utility.Vector3dVector(colors)
         vehicles = self.world.get_actors().filter("vehicle.*")
@@ -441,4 +447,4 @@ class LidarSensor(SensorBase):
             time.sleep(0.005)
             self.frame += 1
 
-        return self.pcd, bbs
+        return self.pcd, bbs, self.pcd_save
