@@ -253,17 +253,17 @@ class CameraSensor(SensorBase):
                     p = get_image_point(vert, K, world_2_camera)
                     # Find the rightmost vertex
                     if p[0] > x_max:
-                        x_max = p[0]
+                        x_max = min(self.sensor_cfg["image_size_x"]-1, p[0])
                     # Find the leftmost vertex
                     if p[0] < x_min:
-                        x_min = p[0]
+                        x_min = max(p[0], 1)
                     # Find the highest vertex
                     if p[1] > y_max:
-                        y_max = p[1]
+                        y_max = min(self.sensor_cfg["image_size_y"]-1, p[1])
                     # Find the lowest  vertex
                     if p[1] < y_min:
-                        y_min = p[1]
-
+                        y_min = max(p[1], 1)
+                        
                 if (
                     y_min > 0
                     and y_max < self.sensor_cfg["image_size_y"]
