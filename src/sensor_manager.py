@@ -242,7 +242,7 @@ class CameraSensor(SensorBase):
             )
             world_location = carla.Location(*list(world_location)[:-1])
             ray = world_location - self.rgb_camera.get_transform().location
-            if location.x > 0 and location.x < 120:
+            if location.x > -0.5 and location.x < 120:
                 verts = [v for v in np.array(bb.T)]
                 x_max = -10000
                 x_min = 10000
@@ -253,17 +253,17 @@ class CameraSensor(SensorBase):
                     p = get_image_point(vert, K, world_2_camera)
                     # Find the rightmost vertex
                     if p[0] > x_max:
-                        x_max = min(self.sensor_cfg["image_size_x"]-1, p[0])
+                        x_max = min(self.sensor_cfg["image_size_x"] - 1, p[0])
                     # Find the leftmost vertex
                     if p[0] < x_min:
                         x_min = max(p[0], 1)
                     # Find the highest vertex
                     if p[1] > y_max:
-                        y_max = min(self.sensor_cfg["image_size_y"]-1, p[1])
+                        y_max = min(self.sensor_cfg["image_size_y"] - 1, p[1])
                     # Find the lowest  vertex
                     if p[1] < y_min:
                         y_min = max(p[1], 1)
-                        
+
                 if (
                     y_min > 0
                     and y_max < self.sensor_cfg["image_size_y"]
@@ -318,6 +318,17 @@ class CameraSensor(SensorBase):
         if self.rgb_surface is not None:
             offset = self.display_man.get_display_offset(self.display_pos)
             self.display_man.display.blit(self.rgb_surface, offset)
+
+    def destroy(self):
+        self.rgb_camera.stop()
+        self.rgb_camera.destroy()
+        if self.depth:
+            self.depth_camera.stop()
+            self.depth_camera.destroy()
+
+        if self.sem_seg:
+            self.sem_seg_camera.stop()
+            self.sem_seg_camera.destroy()
 
 
 class LidarSensor(SensorBase):
@@ -383,7 +394,7 @@ class LidarSensor(SensorBase):
     def retrive_data(self, frame_id, timeout, camera=None):
         points, colors, intensity = super().retrive_data(frame_id, timeout)
         intensity = [[i] for i in intensity]
-        
+
         self.pcd_save.point["positions"] = o3d.core.Tensor(points)
         self.pcd_save.point["intensities"] = o3d.core.Tensor(intensity)
 
@@ -448,3 +459,7 @@ class LidarSensor(SensorBase):
             self.frame += 1
 
         return self.pcd, bbs, self.pcd_save
+
+    def destroy(self):
+        self.lidar.stop()
+        self.lidar.destroy()

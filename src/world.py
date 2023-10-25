@@ -28,7 +28,7 @@ class CarlaWorld:
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(10.0)
-        self.world = self.client.load_world(cfg['map'])
+        self.world = self.client.load_world(cfg["map"])
         self.ego_vehicle = None
         self.world_queue = queue.Queue()
         self._settings = None
@@ -94,6 +94,4 @@ class CarlaWorld:
 
     def destroy_actors(self):
         for actor in self.world.get_actors().filter("*vehicle*"):
-            actor.destroy()
-        for actor in self.world.get_actors().filter("*sensor*"):
             actor.destroy()
