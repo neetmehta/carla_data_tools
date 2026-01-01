@@ -19,21 +19,27 @@ except IndexError:
     pass
 
 import carla
+from src.ego_vehicle import EgoVehicle
 
 
-class CarlaWorld:
+class CarlaWorldManager:
     """Carla world class"""
 
-    def __init__(self, cfg=None) -> None:
+    def __init__(self, cfg, vehicle_cfg) -> None:
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(10.0)
         self.world = self.client.load_world(cfg["map"])
-        self.ego_vehicle = None
+        self.ego_vehicle_cfg = vehicle_cfg
         self.world_queue = queue.Queue()
         self._settings = None
         self.num_cars = cfg["no_of_vehicles"]
 
+    def spawn_ego_vehicle(self):
+        bp_lib = self.world.get_blueprint_library()
+        self.ego_vehicle = EgoVehicle(bp_lib, self.ego_vehicle_cfg)
+        self.ego_vehicle.spwan_ego_vehicle(self.world)
+        
     def set_synchronous(self):
         self._settings = self.world.get_settings()
         self.frame = self.world.apply_settings(

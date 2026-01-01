@@ -3,7 +3,6 @@ import glob
 import os
 import sys
 import math
-import time
 
 sys.path.append("src/")
 try:
@@ -14,8 +13,8 @@ except ImportError:
     raise RuntimeError("cannot import pygame, make sure pygame package is installed")
 
 from src.pygame_display import DisplayManager
-from src.world import CarlaWorld
-from src.ego_vehicle import EgoVehicle
+from src.world_manager import CarlaWorldManager
+
 from src.utils import capture_data
 
 try:
@@ -31,7 +30,6 @@ try:
     )
 except IndexError:
     pass
-import carla
 
 
 def main():
@@ -39,7 +37,7 @@ def main():
     Main function
     """
     try:
-        with open("cfg\\vehicle_cfg.yaml", "r") as f:
+        with open("cfg\\kitti_config.yaml", "r") as f:
             vehicle_cfg = yaml.safe_load(f)
 
         with open("cfg\\config.yaml", "r") as f:
@@ -47,23 +45,21 @@ def main():
 
         os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
         out_dir = os.path.join(cfg["out_dir"], cfg["map"])
+        print("helooooooooo")
         os.makedirs(cfg["out_dir"], exist_ok=True)
-        carla_world = CarlaWorld(cfg)
+        carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
 
-        bp_lib = carla_world.world.get_blueprint_library()
-        ego_vehicle = EgoVehicle(bp_lib, vehicle_cfg)
-        ego_vehicle.spwan_ego_vehicle(carla_world.world)
+        carla_world.spawn_ego_vehicle()
         display_man = None
         if cfg["sensor_preview"]:
-            grid_size = [math.ceil(ego_vehicle.num_cameras / 3), 3]
+            grid_size = [math.ceil(carla_world.ego_vehicle.num_cameras / 3), 3]
             display_man = DisplayManager(grid_size, window_size=[1280, 720])
 
-        ego_vehicle.sensor_setup(
+        carla_world.ego_vehicle.sensor_setup(
             carla_world.world, display_man, enable_lidar_vis=cfg["sensor_preview"]
         )
         carla_world.spawn_actors()
-        ego_vehicle.ego_vehicle.set_autopilot(True)
-
+        carla_world.ego_vehicle.ego_vehicle.set_autopilot(True)
         carla_world.set_synchronous()
 
         capture_frequency = cfg["capture_frequency"]
@@ -72,16 +68,16 @@ def main():
         assert delta_tick > 0, "please reduce capture_frequency"
         frame_no = 0
         call_exit = False
-        rgb, depth, sem_seg, point_cloud = None, None, None, None
+        rgb, depth, sem_seg, _ = None, None, None, None
         # Main loop
         while True:
             continue_flag = False
             frame_id = carla_world.tick()
 
             # Data Capture
-            velocity = ego_vehicle.ego_vehicle.get_velocity()
+            velocity = carla_world.ego_vehicle.ego_vehicle.get_velocity()
 
-            for sensor in ego_vehicle.sensors:
+            for sensor in carla_world.ego_vehicle.sensors:
                 if sensor.sensor_type == "RGBCamera":
                     rgb, depth, sem_seg, bb_2d = sensor.retrive_data(frame_id, 2.0)
                     if (
@@ -101,7 +97,7 @@ def main():
                         # print(f"Saved Camera Frame no {frame_no} for {sensor.sensor_name}")
 
                 if sensor.sensor_type == "LiDAR":
-                    point_cloud, bbs, pcd = sensor.retrive_data(frame_id, 2.0)
+                    _, bbs, pcd = sensor.retrive_data(frame_id, 2.0)
                     if (
                         frame_no % delta_tick == 0
                         and cfg["capture_data"]
@@ -138,7 +134,7 @@ def main():
 
                 if call_exit:
                     pygame.display.quit()
-                    for sensor in ego_vehicle.sensors:
+                    for sensor in carla_world.ego_vehicle.sensors:
                         if sensor.sensor_type == "LiDAR" and sensor.vis:
                             sensor.vis.destroy_window()
 
@@ -149,7 +145,7 @@ def main():
         
     finally:
         print("destroying sensors")
-        for sensor in ego_vehicle.sensors:
+        for sensor in carla_world.ego_vehicle.sensors:
             sensor.destroy()
 
         print("destroying actors")

@@ -2,6 +2,9 @@
 data/
 Sensors_code/
 __pycache__/
+*.pyc
+*.exe
+carla-env/
 *.py[cod]
 *$py.class
 
