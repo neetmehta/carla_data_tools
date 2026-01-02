@@ -11,6 +11,16 @@ sensors: [
              depth: True,
              sem_seg: True
              },
+            {sensor_type: RGBCamera,
+             sensor_name: image_0,
+             image_size_x: 1382,
+             image_size_y: 512,
+             fov: 110,
+             translation: [0.27, -0.06, 1.65],
+             rotation: [0, 0, 0],
+             depth: True,
+             sem_seg: True
+             },
 
              {sensor_type: LiDAR,
              sensor_name: velodyne,

@@ -94,6 +94,7 @@ class SensorBase:
         self.transform = carla.Transform(sensor_location, sensor_rotation)
         self.queue = Queue()
         self.processing_func = None
+        self.vehicles = None
 
     def init_sensor(self):
         raise NotImplementedError
@@ -216,13 +217,15 @@ class CameraSensor(SensorBase):
     def draw_cam_bbs(self, img, depth):
         world_2_camera = np.array(self.rgb_camera.get_transform().get_inverse_matrix())
         K = self.cam_intrinsics
-        vehicles = list(self.world.get_actors().filter("vehicle.*"))
+        if self.vehicles is None:
+            self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
+
         # vehicles = [v.bounding_box for v in vehicles]
         static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car)
         # vehicles.extend(static_bboxes)
         bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
             self.ego_vehicle,
-            vehicles,
+            self.vehicles,
             self.rgb_camera,
             additional_bb=static_bboxes,
         )
@@ -400,10 +403,11 @@ class LidarSensor(SensorBase):
 
         self.pcd.points = o3d.utility.Vector3dVector(points)
         self.pcd.colors = o3d.utility.Vector3dVector(colors)
-        vehicles = self.world.get_actors().filter("vehicle.*")
+        if self.vehicles is None:
+            self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
         bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
             self.ego_vehicle,
-            vehicles,
+            self.vehicles,
             self.lidar,
             additional_bb=self.static_bboxes,
         )

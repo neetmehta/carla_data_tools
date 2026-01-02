@@ -34,6 +34,7 @@ class CarlaWorldManager:
         self.world_queue = queue.Queue()
         self._settings = None
         self.num_cars = cfg["no_of_vehicles"]
+        self.vehicles = []
 
     def spawn_ego_vehicle(self):
         bp_lib = self.world.get_blueprint_library()
@@ -94,6 +95,8 @@ class CarlaWorldManager:
             if temp is not None:
                 self.vehicles.append(temp)
                 temp.set_autopilot(True)
+                
+        self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
 
     def tick(self):
         return self.world.tick()

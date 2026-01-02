@@ -45,14 +45,13 @@ def main():
 
         os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
         out_dir = os.path.join(cfg["out_dir"], cfg["map"])
-        print("helooooooooo")
         os.makedirs(cfg["out_dir"], exist_ok=True)
         carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
 
         carla_world.spawn_ego_vehicle()
         display_man = None
         if cfg["sensor_preview"]:
-            grid_size = [math.ceil(carla_world.ego_vehicle.num_cameras / 3), 3]
+            grid_size = [math.ceil(carla_world.ego_vehicle.num_cameras / 3), min(carla_world.ego_vehicle.num_cameras, 3)]
             display_man = DisplayManager(grid_size, window_size=[1280, 720])
 
         carla_world.ego_vehicle.sensor_setup(
