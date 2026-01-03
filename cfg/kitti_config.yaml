@@ -1,4 +1,4 @@
-vehicle: 'tesla.model3'
+vehicle: 'lincoln.mkz'
 
 sensors: [
             {sensor_type: RGBCamera,

@@ -39,10 +39,10 @@ def main():
     Main function
     """
     try:
-        with open("cfg\\vehicle_cfg.yaml", "r") as f:
+        with open("cfg/kitti_config.yaml", "r") as f:
             vehicle_cfg = yaml.safe_load(f)
 
-        with open("cfg\\config.yaml", "r") as f:
+        with open("cfg/config.yaml", "r") as f:
             cfg = yaml.safe_load(f)
 
         os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
