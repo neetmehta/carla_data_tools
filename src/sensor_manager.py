@@ -184,6 +184,7 @@ class CameraSensor(SensorBase):
             self.sem_seg_queue = Queue()
             self.sem_seg_camera.listen(self.sem_seg_queue.put)
 
+
     def retrive_data(self, frame_id, timeout):
         rgb_data = super().retrive_data(frame_id, timeout)
         depth_data = None

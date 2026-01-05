@@ -35,6 +35,7 @@ class CarlaWorldManager:
         self._settings = None
         self.num_cars = cfg["no_of_vehicles"]
         self.vehicles = []
+        self.world.set_weather(getattr(carla.WeatherParameters, cfg.get("weather", "ClearNoon")))
 
     def spawn_ego_vehicle(self):
         bp_lib = self.world.get_blueprint_library()

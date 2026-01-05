@@ -3,6 +3,7 @@ import glob
 import os
 import sys
 import math
+from datetime import datetime
 
 sys.path.append("src/")
 try:
@@ -15,7 +16,7 @@ except ImportError:
 from src.pygame_display import DisplayManager
 from src.world_manager import CarlaWorldManager
 
-from src.utils import capture_data
+from src.utils import capture_data_async, AsyncDiskWriter, compute_K
 
 try:
     sys.path.append(
@@ -43,9 +44,9 @@ def main():
         with open("cfg\\config.yaml", "r") as f:
             cfg = yaml.safe_load(f)
 
-        os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
-        out_dir = os.path.join(cfg["out_dir"], cfg["map"])
-        os.makedirs(cfg["out_dir"], exist_ok=True)
+        # os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
+        out_dir = os.path.join(cfg["out_dir"], f'run_{cfg["map"]}_{cfg["weather"]}_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+        os.makedirs(out_dir, exist_ok=True)
         carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
 
         carla_world.spawn_ego_vehicle()
@@ -68,6 +69,11 @@ def main():
         frame_no = 0
         call_exit = False
         rgb, depth, sem_seg, _ = None, None, None, None
+        for sensor in carla_world.ego_vehicle.sensors:
+            if sensor.sensor_type == "RGBCamera":
+                _ = compute_K(sensor, out_dir)
+                
+        writer = AsyncDiskWriter(num_workers=4, max_queue_size=200)
         # Main loop
         while True:
             continue_flag = False
@@ -84,7 +90,8 @@ def main():
                         and cfg["capture_data"]
                         and velocity.length() > 0.001
                     ):
-                        capture_data(
+                        capture_data_async(
+                            writer=writer,
                             frame_no=frame_no,
                             out_dir=out_dir,
                             sensor_name=sensor.sensor_name,
@@ -105,7 +112,8 @@ def main():
                         if len(bbs) == 0:
                             continue_flag = True
                             break
-                        capture_data(
+                        capture_data_async(
+                            writer=writer,
                             frame_no=frame_no,
                             out_dir=out_dir,
                             sensor_name=sensor.sensor_name,
