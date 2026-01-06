@@ -67,6 +67,7 @@ def main():
         delta_tick = int(simulation_frequency / capture_frequency)
         assert delta_tick > 0, "please reduce capture_frequency"
         frame_no = 0
+        save_frame_no = 0
         call_exit = False
         rgb, depth, sem_seg, _ = None, None, None, None
         for sensor in carla_world.ego_vehicle.sensors:
@@ -81,18 +82,19 @@ def main():
 
             # Data Capture
             velocity = carla_world.ego_vehicle.ego_vehicle.get_velocity()
+            do_capture = (
+                        frame_no % delta_tick == 0
+                        and cfg["capture_data"]
+                        and velocity.length() > 0.001
+                    )
 
             for sensor in carla_world.ego_vehicle.sensors:
                 if sensor.sensor_type == "RGBCamera":
                     rgb, depth, sem_seg, bb_2d = sensor.retrive_data(frame_id, 2.0)
-                    if (
-                        frame_no % delta_tick == 0
-                        and cfg["capture_data"]
-                        and velocity.length() > 0.001
-                    ):
+                    if do_capture:
                         capture_data_async(
                             writer=writer,
-                            frame_no=frame_no,
+                            frame_no=save_frame_no,
                             out_dir=out_dir,
                             sensor_name=sensor.sensor_name,
                             rgb=rgb,
@@ -104,23 +106,23 @@ def main():
 
                 if sensor.sensor_type == "LiDAR":
                     _, bbs, pcd = sensor.retrive_data(frame_id, 2.0)
-                    if (
-                        frame_no % delta_tick == 0
-                        and cfg["capture_data"]
-                        and velocity.length() > 0.001
-                    ):
+                    if do_capture:
                         if len(bbs) == 0:
                             continue_flag = True
                             break
                         capture_data_async(
                             writer=writer,
-                            frame_no=frame_no,
+                            frame_no=save_frame_no,
                             out_dir=out_dir,
                             sensor_name=sensor.sensor_name,
                             lidar_pc=pcd,
                             bbs=bbs,
                         )
                         # print(f"Saved Lidar Frame no {frame_no} for {sensor.sensor_name}")
+                if do_capture or velocity.length() <= 0.001:
+                    # print(f"Captured data for frame no {frame_no}")
+                    save_frame_no += 1
+                    
 
             if continue_flag:
                 continue
