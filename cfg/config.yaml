@@ -4,8 +4,9 @@ weather: ClearNoon                                                              
 time_of_day: ClearNoon                                                            # Available times of day ['Noon', 'Night', 'Morning', 'Afternoon', 'Evening']
 no_of_vehicles: 30
 synchronous: True
+dynamic_weather: True
 
-out_dir: "F:\\geometric_unsupervised_domain_adaptation\\carla_dataset"                    
+out_dir: "/workspace/carla_data"                    
 capture_frequency: 8
 sensor_preview: True
-capture_data: True
+capture_data: False
