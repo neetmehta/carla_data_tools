@@ -1,11 +1,11 @@
 fps: 10
-map: Town10HD                                                         # Available towns ['Town01', 'Town01_Opt', 'Town02', 'Town02_Opt', 'Town03', 'Town03_Opt', 'Town04', 'Town04_Opt', 'Town05', 'Town05_Opt', 'Town10HD', 'Town10HD_Opt'] 
+map: Town12                                                         # Available towns ['Town01', 'Town01_Opt', 'Town02', 'Town02_Opt', 'Town03', 'Town03_Opt', 'Town04', 'Town04_Opt', 'Town05', 'Town05_Opt', 'Town10HD', 'Town10HD_Opt'] 
 weather: ClearNoon                                                               # Available weathers ['ClearNoon', 'CloudyNoon', 'WetNoon', 'MidRainyNoon', 'HardRainNoon', 'SoftRainNoon', 'ClearSunset', 'CloudySunset', 'WetSunset', 'MidRainSunset', 'HardRainSunset', 'SoftRainSunset']
 time_of_day: ClearNoon                                                            # Available times of day ['Noon', 'Night', 'Morning', 'Afternoon', 'Evening']
-no_of_vehicles: 30
+no_of_vehicles: 40
 synchronous: True
 
-out_dir: "F:\\geometric_unsupervised_domain_adaptation\\carla_dataset"                    
+out_dir: "carla_dataset"                    
 capture_frequency: 8
 sensor_preview: True
-capture_data: True
+capture_data: False

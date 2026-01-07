@@ -27,7 +27,8 @@ class EgoVehicle:
         self.vehicle_cfg = vehicle_cfg
         vehicle = self.vehicle_cfg["vehicle"]
         self.blueprint_lib = bp_lib
-        self.vehicles_bp = self.blueprint_lib.find(f"vehicle.{vehicle}")
+        self.vehicle_bp = self.blueprint_lib.find(f"vehicle.{vehicle}")
+        self.vehicle_bp.set_attribute("role_name", "hero")
         self.num_cameras = 0
         for i in vehicle_cfg["sensors"]:
             if i["sensor_type"] == "RGBCamera":
@@ -36,7 +37,7 @@ class EgoVehicle:
     def spwan_ego_vehicle(self, world):
         spawn_points = world.get_map().get_spawn_points()
         self.ego_vehicle = world.try_spawn_actor(
-            self.vehicles_bp, random.choice(spawn_points)
+            self.vehicle_bp, random.choice(spawn_points)
         )
         self.spectator = world.get_spectator()
         transform = carla.Transform(
