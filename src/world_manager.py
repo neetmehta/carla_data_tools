@@ -89,8 +89,6 @@ class CarlaWorldManager:
             logging.warning(msg, self.cfg["no_of_vehicles"], number_of_spawn_points)
             self.cfg["no_of_vehicles"] = number_of_spawn_points
 
-
-
         batch = []
         for n, transform in enumerate(self.spawn_points):
             if n >= self.cfg["no_of_vehicles"]:
@@ -121,61 +119,7 @@ class CarlaWorldManager:
         all_vehicle_actors = self.world.get_actors(self.vehicles)
         for actor in all_vehicle_actors:
             self.traffic_manager.update_vehicle_lights(actor, True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # if self.num_cars > len(self.spawn_points):
-        #     print("more cars then spawn points")
-        #     self.num_cars = len(self.spawn_points) - 1
-
-        # else:
-        #     self.spawn_points = self.spawn_points[: self.num_cars]
-
-        # # Select some models from the blueprint library
-        # models = [
-        #     "dodge",
-        #     "audi",
-        #     "model3",
-        #     "mini",
-        #     "mustang",
-        #     "lincoln",
-        #     "prius",
-        #     "nissan",
-        #     "crown",
-        #     "impala",
-        # ]
-        # blueprints = []
-        # for vehicle in self.world.get_blueprint_library().filter("*vehicle*"):
-        #     if any(model in vehicle.id for model in models):
-        #         blueprints.append(vehicle)
-
-        # self.vehicles = []
-
-        # # Take a random sample of the spawn points and spawn some vehicles
-        # for i, spawn_point in enumerate(
-        #     random.sample(self.spawn_points, self.num_cars)
-        # ):
-        #     temp = self.world.try_spawn_actor(random.choice(blueprints), spawn_point)
-        #     if temp is not None:
-        #         self.vehicles.append(temp)
-        #         temp.set_autopilot(True)
-                
-        # self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
-
+            
     def tick(self):
         return self.world.tick()
 
