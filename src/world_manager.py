@@ -24,6 +24,7 @@ import carla
 from carla.command import SpawnActor, SetAutopilot, FutureActor, DestroyActor
 
 from src.ego_vehicle import EgoVehicle
+from src.weather import Weather
 
 
 class CarlaWorldManager:
@@ -51,6 +52,8 @@ class CarlaWorldManager:
         self._settings = None
         self.num_cars = cfg["no_of_vehicles"]
         self.vehicles = []
+        self.weather = Weather(self.world.get_weather(), [])
+
         self.world.set_weather(getattr(carla.WeatherParameters, cfg.get("weather", "ClearNoon")))
 
     def spawn_ego_vehicle(self):

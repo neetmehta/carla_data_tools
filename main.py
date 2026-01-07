@@ -45,7 +45,11 @@ def main():
             cfg = yaml.safe_load(f)
 
         # os.makedirs(os.path.join(cfg["out_dir"], cfg["map"]), exist_ok=True)
-        out_dir = os.path.join(cfg["out_dir"], f'run_{cfg["map"]}_{cfg["weather"]}_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+        if not cfg["dynamic_weather"]:
+            out_dir = os.path.join(cfg["out_dir"], f'run_{cfg["map"]}_{cfg["weather"]}_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+            
+        else: 
+            out_dir = os.path.join(cfg["out_dir"], f'run_{cfg["map"]}_dynamic_weather_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
         os.makedirs(out_dir, exist_ok=True)
         carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
 
@@ -70,8 +74,9 @@ def main():
         save_frame_no = 0
         call_exit = False
         rgb, depth, sem_seg, _ = None, None, None, None
+        carla_world.weather.actors = carla_world.world.get_actors().filter('*vehicle*')
         for sensor in carla_world.ego_vehicle.sensors:
-            if sensor.sensor_type == "RGBCamera":
+            if sensor.sensor_type == "RGBCamera" and cfg['capture_data']:
                 _ = compute_K(sensor, out_dir)
                 
         writer = AsyncDiskWriter(num_workers=4, max_queue_size=200)
@@ -79,6 +84,11 @@ def main():
         while True:
             continue_flag = False
             frame_id = carla_world.tick()
+            if cfg["dynamic_weather"]:
+                carla_world.weather.tick(1.0*delta_tick)
+                carla_world.world.set_weather(carla_world.weather.weather)
+                sys.stdout.write('\r' + str(carla_world.weather) + 12 * ' ')
+                sys.stdout.flush()
 
             # Data Capture
             velocity = carla_world.ego_vehicle.ego_vehicle.get_velocity()

@@ -4,6 +4,7 @@ weather: ClearNoon                                                              
 time_of_day: ClearNoon                                                            # Available times of day ['Noon', 'Night', 'Morning', 'Afternoon', 'Evening']
 no_of_vehicles: 40
 synchronous: True
+dynamic_weather: True
 
 out_dir: "carla_dataset"                    
 capture_frequency: 8
