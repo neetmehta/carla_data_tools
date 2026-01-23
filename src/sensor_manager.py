@@ -267,7 +267,7 @@ class CameraSensor(SensorBase):
                     # Find the lowest  vertex
                     if p[1] < y_min:
                         y_min = max(p[1], 1)
-
+                        
                 if (
                     y_min > 0
                     and y_max < self.sensor_cfg["image_size_y"]
@@ -333,6 +333,9 @@ class CameraSensor(SensorBase):
         if self.sem_seg:
             # self.sem_seg_camera.stop()
             self.sem_seg_camera.destroy()
+            
+    def get_transform(self):
+        return self.rgb_camera.get_transform()
 
 
 class LidarSensor(SensorBase):

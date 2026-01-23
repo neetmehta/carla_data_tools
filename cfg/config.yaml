@@ -1,12 +1,12 @@
 fps: 10
-map: Town12                                                         # Available towns ['Town01', 'Town01_Opt', 'Town02', 'Town02_Opt', 'Town03', 'Town03_Opt', 'Town04', 'Town04_Opt', 'Town05', 'Town05_Opt', 'Town10HD', 'Town10HD_Opt'] 
-weather: ClearNoon                                                               # Available weathers ['ClearNoon', 'CloudyNoon', 'WetNoon', 'MidRainyNoon', 'HardRainNoon', 'SoftRainNoon', 'ClearSunset', 'CloudySunset', 'WetSunset', 'MidRainSunset', 'HardRainSunset', 'SoftRainSunset']
+map: Town10HD                                                         # Available towns ['Town01', 'Town01_Opt', 'Town02', 'Town02_Opt', 'Town03', 'Town03_Opt', 'Town04', 'Town04_Opt', 'Town05', 'Town05_Opt', 'Town10HD', 'Town10HD_Opt'] 
+weather: ClearSunset                                                               # Available weathers ['ClearNoon', 'CloudyNoon', 'WetNoon', 'MidRainyNoon', 'HardRainNoon', 'SoftRainNoon', 'ClearSunset', 'CloudySunset', 'WetSunset', 'MidRainSunset', 'HardRainSunset', 'SoftRainSunset']
 time_of_day: ClearNoon                                                            # Available times of day ['Noon', 'Night', 'Morning', 'Afternoon', 'Evening']
-no_of_vehicles: 40
+no_of_vehicles: 20
 synchronous: True
-dynamic_weather: True
+dynamic_weather: False
 
 out_dir: "carla_dataset"                    
 capture_frequency: 8
 sensor_preview: True
-capture_data: False
+capture_data: True

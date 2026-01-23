@@ -85,10 +85,10 @@ def main():
             continue_flag = False
             frame_id = carla_world.tick()
             if cfg["dynamic_weather"]:
-                carla_world.weather.tick(1.0*delta_tick)
+                carla_world.weather.tick(0.20*delta_tick)
                 carla_world.world.set_weather(carla_world.weather.weather)
-                sys.stdout.write('\r' + str(carla_world.weather) + 12 * ' ')
-                sys.stdout.flush()
+                # sys.stdout.write('\r' + str(carla_world.weather) + 12 * ' ')
+                # sys.stdout.flush()
 
             # Data Capture
             velocity = carla_world.ego_vehicle.ego_vehicle.get_velocity()
@@ -100,6 +100,7 @@ def main():
 
             for sensor in carla_world.ego_vehicle.sensors:
                 if sensor.sensor_type == "RGBCamera":
+                    transform = sensor.get_transform()
                     rgb, depth, sem_seg, bb_2d = sensor.retrive_data(frame_id, 2.0)
                     if do_capture:
                         capture_data_async(
@@ -111,6 +112,7 @@ def main():
                             depth=depth,
                             semantic_mask=sem_seg,
                             bb_2d=bb_2d,
+                            transform=transform
                         )
                         # print(f"Saved Camera Frame no {frame_no} for {sensor.sensor_name}")
 

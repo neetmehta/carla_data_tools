@@ -68,8 +68,8 @@ class AsyncDiskWriter:
 
         if job.get("semantic_mask") is not None:
             os.makedirs(os.path.join(sensor_root, "semantic_mask"), exist_ok=True)
-            cv2.imwrite(
-                os.path.join(sensor_root, "semantic_mask", f"{frame_no}.jpg"),
+            np.save(
+                os.path.join(sensor_root, "semantic_mask", f"{frame_no}.npy"),
                 job["semantic_mask"]
             )
 
@@ -102,7 +102,12 @@ class AsyncDiskWriter:
                     f.write(
                         f"Vehicle {bb[0]:.2f} {bb[1]:.2f} {bb[2]:.2f} {bb[3]:.2f}\n"
                     )
-
+                    
+        if job.get("transform") is not None:
+            os.makedirs(os.path.join(sensor_root, "transforms"), exist_ok=True)
+            np.save(os.path.join(sensor_root, "transforms", f"{frame_no}.npy"), np.array(job["transform"].get_matrix()))
+            
+            
     def submit(self, job):
         self.queue.put(job)
 
@@ -122,6 +127,7 @@ def capture_data_async(
     lidar_pc=None,
     bbs=None,
     bb_2d=None,
+    transform=None
 ):
     job = {
         "frame_no": frame_no,
@@ -133,6 +139,7 @@ def capture_data_async(
         "lidar_pc": lidar_pc,
         "bbs": bbs,
         "bb_2d": bb_2d,
+        "transform": transform
     }
 
     writer.submit(job)
