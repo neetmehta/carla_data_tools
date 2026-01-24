@@ -198,6 +198,13 @@ def process_sem_seg_image(image):
     # array = array[:, :, ::-1]
     return array
 
+def process_inst_seg_image(img_rgba):
+    array = np.frombuffer(img_rgba.raw_data, dtype=np.dtype("uint8"))
+    array = np.reshape(array, (img_rgba.height, img_rgba.width, 4))
+    semantic_labels = array[..., 2]  # R channel
+    actor_ids = array[..., 1].astype(np.uint16) + (array[..., 0].astype(np.uint16) << 8)
+    return semantic_labels, actor_ids
+
 
 def process_point_cloud(point_cloud):
     # Auxilliary code for colormaps and axes

@@ -39,6 +39,7 @@ from utils import (
     process_rgb_image,
     process_depth_image,
     process_sem_seg_image,
+    process_inst_seg_image,
     process_point_cloud,
     add_open3d_axis,
     is_empty,
@@ -81,6 +82,19 @@ edges = [
     [7, 3],
 ]
 
+SEMANTIC_MAP = {0: ('unlabelled', (0,0,0)), 1: ('road', (128,64,0)),2: ('sidewalk', (244,35,232)),
+                3: ('building', (70,70,70)), 4: ('wall', (102,102,156)), 5: ('fence', (190,153,153)),
+                6: ('pole', (153,153,153)), 7: ('traffic light', (250,170,30)), 
+                8: ('traffic sign', (220,220,0)), 9: ('vegetation', (107,142,35)),
+                10: ('terrain', (152,251,152)), 11: ('sky', (70,130,180)), 
+                12: ('pedestrian', (220,20,60)), 13: ('rider', (255,0,0)), 
+                14: ('car', (0,0,142)), 15: ('truck', (0,0,70)), 16: ('bus', (0,60,100)), 
+                17: ('train', (0,80,100)), 18: ('motorcycle', (0,0,230)), 
+                19: ('bicycle', (119,11,32)), 20: ('static', (110,190,160)), 
+                21: ('dynamic', (170,120,50)), 22: ('other', (55,90,80)), 
+                23: ('water', (45,60,150)), 24: ('road line', (157,234,50)), 
+                25: ('ground', (81,0,81)), 26: ('bridge', (150,100,100)), 
+                27: ('rail track', (230,150,140)), 28: ('guard rail', (180,165,180))}
 
 class SensorBase:
     def __init__(self, world, ego_vehicle, sensor_cfg) -> None:
@@ -117,10 +131,12 @@ class CameraSensor(SensorBase):
         display_pos=None,
         depth=True,
         sem_seg=True,
+        inst_seg=True
     ) -> None:
         super().__init__(world, ego_vehicle, sensor_cfg)
         self.depth = depth
         self.sem_seg = sem_seg
+        self.inst_seg = inst_seg
         self.rgb_camera = None
         self.depth_camera = None
         self.sem_seg_camera = None
@@ -183,6 +199,21 @@ class CameraSensor(SensorBase):
             )
             self.sem_seg_queue = Queue()
             self.sem_seg_camera.listen(self.sem_seg_queue.put)
+        
+        if self.inst_seg:
+            inst_seg_camera_bp = bp_lib.find("sensor.camera.instance_segmentation")
+            inst_seg_camera_bp.set_attribute(
+                "image_size_x", str(self.sensor_cfg["image_size_x"])
+            )
+            inst_seg_camera_bp.set_attribute(
+                "image_size_y", str(self.sensor_cfg["image_size_y"])
+            )
+            inst_seg_camera_bp.set_attribute("fov", str(self.sensor_cfg["fov"]))
+            self.inst_seg_camera = self.world.spawn_actor(
+                inst_seg_camera_bp, self.transform, attach_to=self.ego_vehicle
+            )
+            self.inst_seg_queue = Queue()
+            self.inst_seg_camera.listen(self.inst_seg_queue.put)
 
 
     def retrive_data(self, frame_id, timeout):
@@ -201,122 +232,63 @@ class CameraSensor(SensorBase):
                 if sem_seg_data.frame == frame_id:
                     sem_seg_data = process_sem_seg_image(sem_seg_data)
                     break
-        rgb_data_copy = rgb_data.copy()
-        rgb_data_copy, bb_2d = self.draw_cam_bbs(rgb_data_copy, depth_data)
+        if self.inst_seg:
+            while True:
+                inst_seg_data = self.inst_seg_queue.get(timeout=timeout)
+                if inst_seg_data.frame == frame_id:
+                    inst_seg_data = process_inst_seg_image(inst_seg_data)
+                    break
 
-        if self.display_man is not None:
-            display_resize = self.display_man.get_display_size()
-            rgb_data_copy = cv2.resize(rgb_data_copy, display_resize)
-            rgb_data_copy = cv2.cvtColor(rgb_data_copy, cv2.COLOR_BGR2RGB)
+        if self.display_man is not None:           
+
             self.rgb_surface = pygame.surfarray.make_surface(
-                rgb_data_copy.swapaxes(0, 1)
+                rgb_data.swapaxes(0, 1)
             )
+            self.rgb_surface, bb_2d = self.draw_cam_bbs(rgb_data, inst_seg_data, self.rgb_surface)
             self.render()
 
         return rgb_data, depth_data, sem_seg_data, bb_2d
 
-    def draw_cam_bbs(self, img, depth):
-        world_2_camera = np.array(self.rgb_camera.get_transform().get_inverse_matrix())
-        K = self.cam_intrinsics
-        if self.vehicles is None:
-            self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
+    def draw_cam_bbs(self, img, inst_seg, surface):
+        semantic_labels, actor_ids = inst_seg
+        dynamic_class = [12,13,14,15,16,17,18,19]
+        boxes = []
 
-        # vehicles = [v.bounding_box for v in vehicles]
-        static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car)
-        # vehicles.extend(static_bboxes)
-        bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
-            self.ego_vehicle,
-            self.vehicles,
-            self.rgb_camera,
-            additional_bb=static_bboxes,
-        )
-        bb_2d = []
-        for bb in bounding_boxes:
-            location = carla.Location(*list(np.array(bb).mean(1)))
-            # Filter for the self.ego_vehicles within 50m
+        for semantic_class in dynamic_class:
+            mask = semantic_labels == semantic_class
+        
+            unique_actors = np.unique(actor_ids[mask])
+            for unique_actor in unique_actors:
+                if unique_actor == self.ego_vehicle.id:
+                    continue
+                actor_mask = actor_ids == unique_actor
+                ys, xs = np.where(actor_mask)
+                xmin, xmax = xs.min(), xs.max()
+                ymin, ymax = ys.min(), ys.max()
+                bbox_area = ((xmax-xmin)*(ymax-ymin))
+                if bbox_area>300:
+                    boxes.append({'actor_id': unique_actor,
+                        'semantic_label': semantic_class,
+                        'bbox_2d': (xmin, ymin, xmax, ymax)})
+        
+        rgb_img = img[:, :, :3][:, :, ::-1] 
+        frame_surface = pygame.surfarray.make_surface(np.transpose(rgb_img[..., 0:3], (1,0,2)))
+        surface.blit(frame_surface, (0, 0))
 
-            # Calculate the dot product between the forward vector
-            # of the self.ego_vehicle and the vector between the self.ego_vehicle
-            # and the other self.ego_vehicle. We threshold this dot product
-            # to limit to drawing bounding boxes IN FRONT OF THE CAMERA
-            forward_vec = self.rgb_camera.get_transform().get_forward_vector()
-            world_location = (
-                np.linalg.inv(world_2_camera)
-                @ np.array([location.x, location.y, location.z, 1]).T
-            )
-            world_location = carla.Location(*list(world_location)[:-1])
-            ray = world_location - self.rgb_camera.get_transform().location
-            if location.x >= 0 and location.x < 120:
-                verts = [v for v in np.array(bb.T)]
-                x_max = -10000
-                x_min = 10000
-                y_max = -10000
-                y_min = 10000
+        font = pygame.font.SysFont("Arial", 18)
 
-                for vert in verts:
-                    p = get_image_point(vert, K, world_2_camera)
-                    # Find the rightmost vertex
-                    if p[0] > x_max:
-                        x_max = min(self.sensor_cfg["image_size_x"] - 1, p[0])
-                    # Find the leftmost vertex
-                    if p[0] < x_min:
-                        x_min = max(p[0], 1)
-                    # Find the highest vertex
-                    if p[1] > y_max:
-                        y_max = min(self.sensor_cfg["image_size_y"] - 1, p[1])
-                    # Find the lowest  vertex
-                    if p[1] < y_min:
-                        y_min = max(p[1], 1)
-                        
-                if (
-                    y_min > 0
-                    and y_max < self.sensor_cfg["image_size_y"]
-                    and x_min > 0
-                    and x_max < self.sensor_cfg["image_size_x"]
-                ):
-                    if depth is not None:
-                        mean_depth = depth[
-                            int(y_min) : int(y_max), int(x_min) : int(x_max)
-                        ].mean()
-                        if (
-                            abs(
-                                mean_depth
-                                - location.distance(carla.Transform().location)
-                            )
-                            <= 20
-                            and forward_vec.dot(ray) > 1
-                        ):
-                            cv2.line(
-                                img,
-                                (int(x_min), int(y_min)),
-                                (int(x_max), int(y_min)),
-                                (0, 0, 255, 255),
-                                1,
-                            )
-                            cv2.line(
-                                img,
-                                (int(x_min), int(y_max)),
-                                (int(x_max), int(y_max)),
-                                (0, 0, 255, 255),
-                                1,
-                            )
-                            cv2.line(
-                                img,
-                                (int(x_min), int(y_min)),
-                                (int(x_min), int(y_max)),
-                                (0, 0, 255, 255),
-                                1,
-                            )
-                            cv2.line(
-                                img,
-                                (int(x_max), int(y_min)),
-                                (int(x_max), int(y_max)),
-                                (0, 0, 255, 255),
-                                1,
-                            )
-                            bb_2d.append((x_min, y_min, x_max, y_max))
+        for bbox in boxes:
+            if bbox is not None:
+                xmin, ymin, xmax, ymax = [int(v) for v in bbox['bbox_2d']]
+                label = SEMANTIC_MAP[bbox['semantic_label']][0]
+                color = SEMANTIC_MAP[bbox['semantic_label']][1]
+                pygame.draw.rect(surface, color, pygame.Rect(xmin, ymin, xmax-xmin, ymax-ymin), 2)
+                text_surface = font.render(label, True, (255,255,255), color) 
+                text_rect = text_surface.get_rect(topleft=(xmin, ymin-20))
+                surface.blit(text_surface, text_rect)
 
-        return img, bb_2d
+        return surface, []
+
 
     def render(self):
         if self.rgb_surface is not None:
