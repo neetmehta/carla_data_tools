@@ -1,3 +1,13 @@
+"""
+CARLA World Manager Module
+
+This module provides high-level management of the CARLA simulation world, including
+world initialization, vehicle spawning, traffic management, and synchronization.
+
+Classes:
+    CarlaWorldManager: Main class for managing CARLA world state and actors
+"""
+
 import random
 import queue
 import logging
@@ -8,44 +18,190 @@ from carla.command import SpawnActor, SetAutopilot, FutureActor
 from src.ego_vehicle import EgoVehicle
 from src.weather import Weather
 
+# Logging configuration
+logger = logging.getLogger(__name__)
+
+# Traffic Manager Configuration Constants
+TRAFFIC_MANAGER_HOST = "localhost"
+TRAFFIC_MANAGER_PORT = 2000
+TRAFFIC_MANAGER_TIMEOUT = 10.0
+TRAFFIC_MANAGER_LEADING_DISTANCE = 2.5
+TRAFFIC_MANAGER_HYBRID_PHYSICS_RADIUS = 70.0
+ACTOR_ACTIVE_DISTANCE = 200
+RESPAWN_DORMANT_LOWER_BOUND = 10
+RESPAWN_DORMANT_UPPER_BOUND = 190
+
 
 class CarlaWorldManager:
-    """Carla world class"""
+    """
+    Manager for CARLA world state and actor spawning.
+    
+    Handles world initialization, vehicle spawning (both autonomous and ego vehicle),
+    traffic management settings, and simulation synchronization.
+    
+    Attributes:
+        client: CARLA client connection
+        world: CARLA world instance
+        traffic_manager: CARLA traffic manager for NPC vehicle control
+        ego_vehicle: EgoVehicle instance
+        vehicles: List of spawned NPC vehicle actor IDs
+        weather: Weather system manager
+        delta_seconds: Fixed simulation timestep duration
+    """
 
     def __init__(self, cfg, vehicle_cfg) -> None:
+        """
+        Initialize CARLA world manager.
+        
+        Args:
+            cfg: Main configuration dictionary with keys:
+                - map: CARLA map name to load
+                - fps: Simulation frequency in frames per second
+                - weather: Initial weather preset name (default: ClearNoon)
+                - no_of_vehicles: Number of NPC vehicles to spawn
+            vehicle_cfg: Vehicle configuration dictionary for ego vehicle
+        """
         self.cfg = cfg
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
-        self.client = carla.Client("localhost", 2000)
-        self.client.set_timeout(10.0)
+        
+        # Initialize CARLA client and world
+        self.client = carla.Client(TRAFFIC_MANAGER_HOST, TRAFFIC_MANAGER_PORT)
+        self.client.set_timeout(TRAFFIC_MANAGER_TIMEOUT)
         self.world = self.client.load_world(cfg["map"])
+        
+        # Configure traffic manager for NPC vehicles
         self.traffic_manager = self.client.get_trafficmanager()
-        self.traffic_manager.set_global_distance_to_leading_vehicle(2.5)
-        self.traffic_manager.set_respawn_dormant_vehicles(True)
-        self.traffic_manager.set_hybrid_physics_mode(True)
-        self.traffic_manager.set_hybrid_physics_radius(70.0)
-        self.traffic_manager.set_synchronous_mode(True)
-        settings = self.world.get_settings()
-        settings.actor_active_distance = 200
-        self.traffic_manager.set_boundaries_respawn_dormant_vehicles(10, 190)
-        self.world.apply_settings(settings)
-
+        self._configure_traffic_manager()
+        
+        # Configure world actor settings
+        self._configure_world_settings()
+        
+        # Initialize vehicle and weather systems
         self.ego_vehicle_cfg = vehicle_cfg
         self.world_queue = queue.Queue()
         self._settings = None
-        self.num_cars = cfg["no_of_vehicles"]
         self.vehicles = []
         self.weather = Weather(self.world.get_weather(), [])
 
+        # Set initial weather
+        initial_weather = cfg.get("weather", "ClearNoon")
         self.world.set_weather(
-            getattr(carla.WeatherParameters, cfg.get("weather", "ClearNoon"))
+            getattr(carla.WeatherParameters, initial_weather)
+        )
+        
+        logger.info(f"Initialized CARLA world: {cfg['map']} with {cfg['no_of_vehicles']} vehicles")
+
+    def _configure_traffic_manager(self):
+        """Configure traffic manager parameters for NPC vehicle behavior."""
+        self.traffic_manager.set_global_distance_to_leading_vehicle(
+            TRAFFIC_MANAGER_LEADING_DISTANCE
+        )
+        self.traffic_manager.set_respawn_dormant_vehicles(True)
+        self.traffic_manager.set_hybrid_physics_mode(True)
+        self.traffic_manager.set_hybrid_physics_radius(TRAFFIC_MANAGER_HYBRID_PHYSICS_RADIUS)
+        self.traffic_manager.set_synchronous_mode(True)
+        self.traffic_manager.set_boundaries_respawn_dormant_vehicles(
+            RESPAWN_DORMANT_LOWER_BOUND, RESPAWN_DORMANT_UPPER_BOUND
         )
 
+    def _configure_world_settings(self):
+        """Configure world-level actor settings."""
+        settings = self.world.get_settings()
+        settings.actor_active_distance = ACTOR_ACTIVE_DISTANCE
+        self.world.apply_settings(settings)
+
     def spawn_ego_vehicle(self):
+        """
+        Spawn the ego (main player-controlled) vehicle.
+        
+        Creates the ego vehicle from configuration and spawns it in the world.
+        This should be called after traffic actors are spawned to avoid collisions.
+        """
         bp_lib = self.world.get_blueprint_library()
         self.ego_vehicle = EgoVehicle(bp_lib, self.ego_vehicle_cfg)
         self.ego_vehicle.spwan_ego_vehicle(self.world)
+        logger.info(f"Spawned ego vehicle: {self.ego_vehicle_cfg['vehicle']}")
+
+    def spawn_actors(self):
+        """
+        Spawn NPC vehicles and configure their behavior.
+        
+        Spawns autonomous vehicles at random spawn points with random colors and
+        configures them with autopilot via the traffic manager. Skips the ego vehicle's
+        spawn point to avoid conflicts.
+        """
+        # Get available blueprints
+        vehicles_bp = self.world.get_blueprint_library().filter("*vehicle*")
+        cars_bp = [x for x in vehicles_bp if x.get_attribute("base_type") == "car"]
+        cars_bp = sorted(cars_bp, key=lambda bp: bp.id)
+
+        # Get spawn points and validate count
+        self.spawn_points = self.world.get_map().get_spawn_points()
+        number_of_spawn_points = len(self.spawn_points)
+
+        if self.cfg["no_of_vehicles"] < number_of_spawn_points:
+            random.shuffle(self.spawn_points)
+        elif self.cfg["no_of_vehicles"] > number_of_spawn_points:
+            logger.warning(
+                f"Requested {self.cfg['no_of_vehicles']} vehicles, "
+                f"but only {number_of_spawn_points} spawn points available"
+            )
+            self.cfg["no_of_vehicles"] = number_of_spawn_points
+
+        # Prepare batch spawn commands
+        batch = []
+        for n, transform in enumerate(self.spawn_points):
+            if n >= self.cfg["no_of_vehicles"]:
+                break
+            
+            # Select random vehicle blueprint
+            blueprint = random.choice(cars_bp)
+            
+            # Randomize vehicle appearance
+            if blueprint.has_attribute("color"):
+                color = random.choice(
+                    blueprint.get_attribute("color").recommended_values
+                )
+                blueprint.set_attribute("color", color)
+            
+            # Randomize driver appearance if available
+            if blueprint.has_attribute("driver_id"):
+                driver_id = random.choice(
+                    blueprint.get_attribute("driver_id").recommended_values
+                )
+                blueprint.set_attribute("driver_id", driver_id)
+            else:
+                blueprint.set_attribute("role_name", "autopilot")
+
+            # Queue vehicle spawn with autopilot enabled
+            batch.append(
+                SpawnActor(blueprint, transform).then(
+                    SetAutopilot(FutureActor, True, self.traffic_manager.get_port())
+                )
+            )
+
+        # Execute batch spawn and collect results
+        responses = self.client.apply_batch_sync(batch, True)
+        for response in responses:
+            if response.error:
+                logger.error(f"Spawn error: {response.error}")
+            else:
+                self.vehicles.append(response.actor_id)
+
+        # Configure vehicle lights
+        all_vehicle_actors = self.world.get_actors(self.vehicles)
+        for actor in all_vehicle_actors:
+            self.traffic_manager.update_vehicle_lights(actor, True)
+        
+        logger.info(f"Spawned {len(self.vehicles)} NPC vehicles")
 
     def set_synchronous(self):
+        """
+        Enable synchronous mode for frame-by-frame simulation.
+        
+        Switches world from asynchronous to synchronous mode with fixed timestep.
+        This is essential for deterministic data collection and sensor synchronization.
+        """
         self._settings = self.world.get_settings()
         self.frame = self.world.apply_settings(
             carla.WorldSettings(
@@ -55,68 +211,34 @@ class CarlaWorldManager:
             )
         )
         self.world.on_tick(self.world_queue.put)
-
-    def restore(self):
-        self.world.apply_settings(self._settings)
-
-    def spawn_actors(self):
-        """spawns npc into the environment"""
-        vehicles_bp = self.world.get_blueprint_library().filter("*vehicle*")
-        walkers_bp = self.world.get_blueprint_library().filter("walker.pedestrian.*")
-        cars_bp = [x for x in vehicles_bp if x.get_attribute("base_type") == "car"]
-        cars_bp = sorted(cars_bp, key=lambda bp: bp.id)
-
-        self.spawn_points = self.world.get_map().get_spawn_points()
-        number_of_spawn_points = len(self.spawn_points)
-
-        if self.cfg["no_of_vehicles"] < number_of_spawn_points:
-            random.shuffle(self.spawn_points)
-        elif self.cfg["no_of_vehicles"] > number_of_spawn_points:
-            msg = "requested %d vehicles, but could only find %d spawn points"
-            logging.warning(msg, self.cfg["no_of_vehicles"], number_of_spawn_points)
-            self.cfg["no_of_vehicles"] = number_of_spawn_points
-
-        batch = []
-        for n, transform in enumerate(self.spawn_points):
-            if n >= self.cfg["no_of_vehicles"]:
-                break
-            blueprint = random.choice(cars_bp)
-            if blueprint.has_attribute("color"):
-                color = random.choice(
-                    blueprint.get_attribute("color").recommended_values
-                )
-                blueprint.set_attribute("color", color)
-            if blueprint.has_attribute("driver_id"):
-                driver_id = random.choice(
-                    blueprint.get_attribute("driver_id").recommended_values
-                )
-                blueprint.set_attribute("driver_id", driver_id)
-
-            else:
-                blueprint.set_attribute("role_name", "autopilot")
-
-            # spawn the cars and set their autopilot and light state all together
-            batch.append(
-                SpawnActor(blueprint, transform).then(
-                    SetAutopilot(FutureActor, True, self.traffic_manager.get_port())
-                )
-            )
-
-        for response in self.client.apply_batch_sync(batch, True):
-            if response.error:
-                logging.error(response.error)
-            else:
-                self.vehicles.append(response.actor_id)
-
-        # Set automatic vehicle lights update if specified
-
-        all_vehicle_actors = self.world.get_actors(self.vehicles)
-        for actor in all_vehicle_actors:
-            self.traffic_manager.update_vehicle_lights(actor, True)
+        logger.info(f"Synchronous mode enabled (delta_seconds: {self.delta_seconds})")
 
     def tick(self):
+        """
+        Advance simulation by one frame.
+        
+        Returns:
+            int: Current frame number after tick
+        """
         return self.world.tick()
 
+    def restore(self):
+        """Restore world settings to state before synchronous mode was enabled."""
+        if self._settings is not None:
+            self.world.apply_settings(self._settings)
+            logger.info("Restored original world settings")
+
     def destroy_actors(self):
-        for actor in self.world.get_actors().filter("*vehicle*"):
+        """
+        Destroy all NPC vehicles in the world.
+        
+        Safely removes all vehicle actors except the ego vehicle, which should be
+        destroyed separately.
+        """
+        vehicle_actors = self.world.get_actors().filter("*vehicle*")
+        actor_count = len(vehicle_actors)
+        
+        for actor in vehicle_actors:
             actor.destroy()
+        
+        logger.info(f"Destroyed {actor_count} actors")
