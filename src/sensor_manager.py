@@ -134,6 +134,7 @@ class SensorBase:
         self.queue = Queue()
         self.processing_func = None
         self.vehicles = None
+        self.walkers = None
 
     def init_sensor(self):
         """Initialize sensor (to be implemented by subclasses)."""
@@ -414,6 +415,7 @@ class CameraSensor(SensorBase):
                     boxes.append({
                         "actor_id": int(unique_actor),
                         "semantic_label": semantic_class,
+                        "class_name": SEMANTIC_MAP[semantic_class][0],
                         "bbox_2d": (int(xmin), int(ymin), int(xmax), int(ymax)),
                     })
 
@@ -538,7 +540,9 @@ class LidarSensor(SensorBase):
         self.init_sensor(bp_lib)
         
         # Get static bounding boxes (buildings, infrastructure, etc.)
-        self.static_bboxes = self.world.get_level_bbs(carla.CityObjectLabel.Car)
+        self.static_bboxes = []
+        for class_id in DYNAMIC_OBJECT_CLASSES:
+            self.static_bboxes.append((self.world.get_level_bbs(class_id), class_id))
         
         # Initialize frame tracking and point cloud data structures
         self.frame = 0
@@ -609,6 +613,9 @@ class LidarSensor(SensorBase):
         # Get list of vehicles for bounding box detection
         if self.vehicles is None:
             self.vehicles = list(self.world.get_actors().filter("vehicle.*"))
+            
+        if self.walkers is None:
+            self.walkers = list(self.world.get_actors().filter("walker.pedestrian.*"))
         
         # Detect bounding boxes using client-side detection
         bounding_boxes = ClientSideBoundingBoxes.get_bounding_boxes(
@@ -617,12 +624,19 @@ class LidarSensor(SensorBase):
             self.lidar,
             additional_bb=self.static_bboxes,
         )
+        
+        bounding_boxes.extend(ClientSideBoundingBoxes.get_bounding_boxes(
+            self.ego_vehicle,
+            self.walkers,
+            self.lidar,
+            additional_bb=None,
+        ))
         bbs = []
 
         # Process bounding boxes
         for box in bounding_boxes:
             # Flip x-axis for proper coordinate frame alignment
-            box[0, :] *= -1
+            box["bbox"][0, :] *= -1
 
         # Update visualization if enabled
         if self.vis:
@@ -643,7 +657,8 @@ class LidarSensor(SensorBase):
             self.vis.add_geometry(self.pcd)
 
             # Add bounding box line sets
-            for box in bounding_boxes:
+            for bbox in bounding_boxes:
+                box = bbox["bbox"]
                 line_set = o3d.geometry.LineSet()
                 line_set.points = o3d.utility.Vector3dVector(np.asarray(box.T))
                 line_set.lines = o3d.utility.Vector2iVector(BOUNDING_BOX_LINES)
@@ -652,7 +667,8 @@ class LidarSensor(SensorBase):
 
         # Update visualization every frame
         if len(self.line_sets) != 0:
-            for i, box in enumerate(bounding_boxes):
+            for i, bbox in enumerate(bounding_boxes):
+                box = bbox["bbox"]
                 # Check if bounding box contains any points (vehicle detection)
                 if is_empty(
                     self.pcd,
@@ -678,10 +694,10 @@ class LidarSensor(SensorBase):
                 _, _, yaw = r.as_euler("xyz", degrees=True)
                 
                 # Create BoundingBox namedtuple
-                bb = BoundingBox(
-                    obb.center.copy(), obb.extent.copy(), np.deg2rad(yaw)
-                )
-                bbs.append(bb)
+                bb = {
+                    "center": obb.center.copy().tolist(), "extent": obb.extent.copy().tolist(), "yaw": np.deg2rad(yaw)
+                }
+                bbs.append({"bbox": bb, "actor_id": bbox["actor_id"], "actor_class": bbox["actor_class"]})
 
         # Update point cloud and refresh renderer
         self.vis.update_geometry(self.pcd)

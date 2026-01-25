@@ -1,6 +1,38 @@
 import carla
 import numpy as np
 
+SEMANTIC_MAP = {
+    0: ("unlabelled", (0, 0, 0)),
+    1: ("road", (128, 64, 0)),
+    2: ("sidewalk", (244, 35, 232)),
+    3: ("building", (70, 70, 70)),
+    4: ("wall", (102, 102, 156)),
+    5: ("fence", (190, 153, 153)),
+    6: ("pole", (153, 153, 153)),
+    7: ("traffic light", (250, 170, 30)),
+    8: ("traffic sign", (220, 220, 0)),
+    9: ("vegetation", (107, 142, 35)),
+    10: ("terrain", (152, 251, 152)),
+    11: ("sky", (70, 130, 180)),
+    12: ("pedestrian", (220, 20, 60)),
+    13: ("rider", (255, 0, 0)),
+    14: ("car", (0, 0, 142)),
+    15: ("truck", (0, 0, 70)),
+    16: ("bus", (0, 60, 100)),
+    17: ("train", (0, 80, 100)),
+    18: ("motorcycle", (0, 0, 230)),
+    19: ("bicycle", (119, 11, 32)),
+    20: ("static", (110, 190, 160)),
+    21: ("dynamic", (170, 120, 50)),
+    22: ("other", (55, 90, 80)),
+    23: ("water", (45, 60, 150)),
+    24: ("road line", (157, 234, 50)),
+    25: ("ground", (81, 0, 81)),
+    26: ("bridge", (150, 100, 100)),
+    27: ("rail track", (230, 150, 140)),
+    28: ("guard rail", (180, 165, 180)),
+}
+
 
 class ClientSideBoundingBoxes(object):
     """
@@ -14,19 +46,27 @@ class ClientSideBoundingBoxes(object):
         Creates 3D bounding boxes based on carla vehicle list and sensor.
         """
 
+        bounding_boxes = []
+        for vehicle in vehicles:
+            if vehicle.id != ego_vehicle.id:
+                bbox = ClientSideBoundingBoxes.get_bounding_box(vehicle, sensor)
+                actor_class = SEMANTIC_MAP[vehicle.semantic_tags[0]][0]
+                actor_id = vehicle.id
+                bounding_boxes.append(
+                    {"bbox": bbox, "actor_class": actor_class, "actor_id": actor_id}
+                )
+
         if additional_bb:
-            static_bounding_boxes = [
-                ClientSideBoundingBoxes.get_bounding_box_static(bbox, sensor)
-                for bbox in additional_bb
-            ]
-
-        bounding_boxes = [
-            ClientSideBoundingBoxes.get_bounding_box(vehicle, sensor)
-            for vehicle in vehicles
-            if vehicle.id != ego_vehicle.id
-        ]
-
-        bounding_boxes.extend(static_bounding_boxes)
+            for static_class_list, class_id in additional_bb:
+                for static_object in static_class_list:
+                    bbox = ClientSideBoundingBoxes.get_bounding_box_static(
+                        static_object, sensor
+                    )
+                    actor_id = 0
+                    actor_class = SEMANTIC_MAP[class_id][0]
+                    bounding_boxes.append(
+                        {"bbox": bbox, "actor_class": actor_class, "actor_id": actor_id}
+                    )
 
         return bounding_boxes
 

@@ -63,15 +63,9 @@ class AsyncDiskWriter:
         if job.get("bbs") is not None:
             os.makedirs(os.path.join(sensor_root, "bb_labels"), exist_ok=True)
             with open(
-                os.path.join(sensor_root, "bb_labels", f"{frame_no}.txt"), "w"
+                os.path.join(sensor_root, "bb_labels", f"{frame_no}.json"), "w"
             ) as f:
-                for bb in job["bbs"]:
-                    f.write(
-                        f"Vehicle 0.0 0 0.0 0 0 0 0 "
-                        f"{bb.extent[-1]:.2f} {bb.extent[-2]:.2f} {bb.extent[-3]:.2f} "
-                        f"{bb.center[0]:.2f} {bb.center[1]:.2f} {bb.center[2]:.2f} "
-                        f"{bb.yaw:.2f}\n"
-                    )
+                json.dump(job["bbs"], f)
 
         if job.get("bb_2d") is not None:
             os.makedirs(os.path.join(sensor_root, "2d_bb_labels"), exist_ok=True)
@@ -128,9 +122,7 @@ def is_empty(pcd, box, threshold=10):
     bounding_box = o3d.geometry.AxisAlignedBoundingBox(
         min_bound=np.min(box, axis=1), max_bound=np.max(box, axis=1)
     )
-
-    filtered_point_cloud = pcd.crop(bounding_box)
-    return len(np.array(filtered_point_cloud.points)) < threshold
+    return len(bounding_box.get_point_indices_within_bounding_box(pcd.points)) < threshold
 
 
 def add_open3d_axis(vis):

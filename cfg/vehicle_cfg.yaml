@@ -19,8 +19,8 @@ sensors: [
              fov: 110,
              translation: [0.5,0.866,2],
              rotation: [0, 60, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
              {sensor_type: RGBCamera,
              sensor_name: rgb_camera3,
@@ -29,8 +29,8 @@ sensors: [
              fov: 110,
              translation: [-0.5,0.866,2],
              rotation: [0, 120, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
              {sensor_type: RGBCamera,
              sensor_name: rgb_camera4,
@@ -39,8 +39,8 @@ sensors: [
              fov: 110,
              translation: [-1,0,2],
              rotation: [0, 180, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
              {sensor_type: RGBCamera,
              sensor_name: rgb_camera5,
@@ -49,8 +49,8 @@ sensors: [
              fov: 110,
              translation: [-0.5,-0.866,2],
              rotation: [0, 240, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
              {sensor_type: RGBCamera,
              sensor_name: rgb_camera6,
@@ -59,25 +59,25 @@ sensors: [
              fov: 110,
              translation: [0.5,-0.866,2],
              rotation: [0, 300, 0],
-             depth: False,
-             sem_seg: False
+             depth: True,
+             sem_seg: True
              },
 
 
-            #  {sensor_type: LiDAR,
-            #  sensor_name: lidar1,
-            #  channels: 64,
-            #  points_per_second: 1_300_000,
-            #  rotation_frequency: 10,
-            #  noise_stddev: 0.2,
-            #  upper_fov: 2.0,
-            #  lower_fov: -24.8,
-            #  range: 120,
-            #  sensor_tick: 0.0,
-            #  dropoff_general_rate: 0.1,
-            #  dropoff_intensity_limit: 0.8,
-            #  dropoff_zero_intensity: 0.4,
-            #  vehicle_detection_threshold: 15,
-            #  translation: [0,0,1.73],
-            #  rotation: [0, -180, 0]}
+             {sensor_type: LiDAR,
+             sensor_name: lidar1,
+             channels: 64,
+             points_per_second: 1_300_000,
+             rotation_frequency: 10,
+             noise_stddev: 0.2,
+             upper_fov: 2.0,
+             lower_fov: -24.8,
+             range: 120,
+             sensor_tick: 0.0,
+             dropoff_general_rate: 0.1,
+             dropoff_intensity_limit: 0.8,
+             dropoff_zero_intensity: 0.4,
+             vehicle_detection_threshold: 15,
+             translation: [0,0,1.73],
+             rotation: [0, -180, 0]}
 ]

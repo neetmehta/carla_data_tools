@@ -28,7 +28,7 @@ from src.utils import capture_data_async, AsyncDiskWriter, compute_K
 SENSOR_DATA_TIMEOUT = 2.0  # Timeout for retrieving sensor data (seconds)
 WEATHER_TICK_FACTOR = 0.20  # Factor to adjust weather update speed
 MIN_VELOCITY_THRESHOLD = 0.001  # Minimum velocity to consider vehicle in motion
-DISK_WRITER_WORKERS = 4  # Number of async disk writer threads
+DISK_WRITER_WORKERS = 8  # Number of async disk writer threads
 DISK_WRITER_QUEUE_SIZE = 200  # Maximum queue size for disk writer
 
 
@@ -61,6 +61,7 @@ def main():
         # Initialize CARLA world manager
         carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
         carla_world.spawn_actors()
+        carla_world.spawn_peds()
         carla_world.spawn_ego_vehicle()
         
         # Setup visualization display if enabled
