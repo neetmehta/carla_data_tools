@@ -1,7 +1,4 @@
-try:
-    import pygame
-except ImportError:
-    raise RuntimeError("cannot import pygame, make sure pygame package is installed")
+import pygame
 
 
 class DisplayManager:

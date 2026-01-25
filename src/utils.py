@@ -1,29 +1,13 @@
 import numpy as np
-import glob
 import os
-import sys
 import open3d as o3d
 from matplotlib import cm
 import cv2
 import json
-
-try:
-    sys.path.append(
-        glob.glob(
-            "../carla/dist/carla-*%d.%d-%s.egg"
-            % (
-                sys.version_info.major,
-                sys.version_info.minor,
-                "win-amd64" if os.name == "nt" else "linux-x86_64",
-            )
-        )[0]
-    )
-except IndexError:
-    pass
 import carla
-
 import threading
 import queue
+
 
 class AsyncDiskWriter:
     def __init__(self, num_workers=4, max_queue_size=100):
@@ -56,29 +40,24 @@ class AsyncDiskWriter:
         if job.get("rgb") is not None:
             os.makedirs(os.path.join(sensor_root, "rgb_images"), exist_ok=True)
             cv2.imwrite(
-                os.path.join(sensor_root, "rgb_images", f"{frame_no}.jpg"),
-                job["rgb"]
+                os.path.join(sensor_root, "rgb_images", f"{frame_no}.jpg"), job["rgb"]
             )
 
         if job.get("depth") is not None:
             os.makedirs(os.path.join(sensor_root, "depth"), exist_ok=True)
-            np.save(
-                os.path.join(sensor_root, "depth", f"{frame_no}.npy"),
-                job["depth"]
-            )
+            np.save(os.path.join(sensor_root, "depth", f"{frame_no}.npy"), job["depth"])
 
         if job.get("semantic_mask") is not None:
             os.makedirs(os.path.join(sensor_root, "semantic_mask"), exist_ok=True)
             np.save(
                 os.path.join(sensor_root, "semantic_mask", f"{frame_no}.npy"),
-                job["semantic_mask"]
+                job["semantic_mask"],
             )
 
         if job.get("lidar_pc") is not None:
             os.makedirs(os.path.join(sensor_root, "lidar"), exist_ok=True)
             o3d.t.io.write_point_cloud(
-                os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"),
-                job["lidar_pc"]
+                os.path.join(sensor_root, "lidar", f"{frame_no}.pcd"), job["lidar_pc"]
             )
 
         if job.get("bbs") is not None:
@@ -100,13 +79,14 @@ class AsyncDiskWriter:
                 os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.json"), "w"
             ) as f:
                 json.dump(job["bb_2d"], f)
-                
-                    
+
         if job.get("transform") is not None:
             os.makedirs(os.path.join(sensor_root, "transforms"), exist_ok=True)
-            np.save(os.path.join(sensor_root, "transforms", f"{frame_no}.npy"), np.array(job["transform"].get_matrix()))
-            
-            
+            np.save(
+                os.path.join(sensor_root, "transforms", f"{frame_no}.npy"),
+                np.array(job["transform"].get_matrix()),
+            )
+
     def submit(self, job):
         self.queue.put(job)
 
@@ -126,7 +106,7 @@ def capture_data_async(
     lidar_pc=None,
     bbs=None,
     bb_2d=None,
-    transform=None
+    transform=None,
 ):
     job = {
         "frame_no": frame_no,
@@ -138,10 +118,11 @@ def capture_data_async(
         "lidar_pc": lidar_pc,
         "bbs": bbs,
         "bb_2d": bb_2d,
-        "transform": transform
+        "transform": transform,
     }
 
     writer.submit(job)
+
 
 def is_empty(pcd, box, threshold=10):
     bounding_box = o3d.geometry.AxisAlignedBoundingBox(
@@ -196,6 +177,7 @@ def process_sem_seg_image(image):
     array = array[:, :, :3]
     # array = array[:, :, ::-1]
     return array
+
 
 def process_inst_seg_image(img_rgba):
     array = np.frombuffer(img_rgba.raw_data, dtype=np.dtype("uint8"))
@@ -263,10 +245,11 @@ def get_image_point(loc, K, w2c, not_transform=True):
 
     return point_img[0:2]
 
+
 def compute_K(camera, path):
 
     camera_name = camera.sensor_cfg["sensor_name"]
-    W  = int(camera.sensor_cfg["image_size_x"])
+    W = int(camera.sensor_cfg["image_size_x"])
     H = int(camera.sensor_cfg["image_size_y"])
     fov = float(camera.sensor_cfg["fov"])
     K = build_projection_matrix(W, H, fov)

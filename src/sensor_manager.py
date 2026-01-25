@@ -1,28 +1,6 @@
-import glob
-import os
-import sys
-import matplotlib.pyplot as plt
-
-try:
-    sys.path.append(
-        glob.glob(
-            "../carla/dist/carla-*%d.%d-%s.egg"
-            % (
-                sys.version_info.major,
-                sys.version_info.minor,
-                "win-amd64" if os.name == "nt" else "linux-x86_64",
-            )
-        )[0]
-    )
-except IndexError:
-    pass
-
 import carla
-import argparse
-import random
 import time
 import numpy as np
-import cv2
 import open3d as o3d
 
 from scipy.spatial.transform import Rotation
@@ -30,8 +8,7 @@ from queue import Queue
 
 try:
     import pygame
-    from pygame.locals import K_ESCAPE
-    from pygame.locals import K_q
+
 except ImportError:
     raise RuntimeError("cannot import pygame, make sure pygame package is installed")
 
@@ -44,7 +21,6 @@ from utils import (
     add_open3d_axis,
     is_empty,
     build_projection_matrix,
-    get_image_point,
 )
 
 from bounding_box import ClientSideBoundingBoxes
@@ -82,19 +58,38 @@ edges = [
     [7, 3],
 ]
 
-SEMANTIC_MAP = {0: ('unlabelled', (0,0,0)), 1: ('road', (128,64,0)),2: ('sidewalk', (244,35,232)),
-                3: ('building', (70,70,70)), 4: ('wall', (102,102,156)), 5: ('fence', (190,153,153)),
-                6: ('pole', (153,153,153)), 7: ('traffic light', (250,170,30)), 
-                8: ('traffic sign', (220,220,0)), 9: ('vegetation', (107,142,35)),
-                10: ('terrain', (152,251,152)), 11: ('sky', (70,130,180)), 
-                12: ('pedestrian', (220,20,60)), 13: ('rider', (255,0,0)), 
-                14: ('car', (0,0,142)), 15: ('truck', (0,0,70)), 16: ('bus', (0,60,100)), 
-                17: ('train', (0,80,100)), 18: ('motorcycle', (0,0,230)), 
-                19: ('bicycle', (119,11,32)), 20: ('static', (110,190,160)), 
-                21: ('dynamic', (170,120,50)), 22: ('other', (55,90,80)), 
-                23: ('water', (45,60,150)), 24: ('road line', (157,234,50)), 
-                25: ('ground', (81,0,81)), 26: ('bridge', (150,100,100)), 
-                27: ('rail track', (230,150,140)), 28: ('guard rail', (180,165,180))}
+SEMANTIC_MAP = {
+    0: ("unlabelled", (0, 0, 0)),
+    1: ("road", (128, 64, 0)),
+    2: ("sidewalk", (244, 35, 232)),
+    3: ("building", (70, 70, 70)),
+    4: ("wall", (102, 102, 156)),
+    5: ("fence", (190, 153, 153)),
+    6: ("pole", (153, 153, 153)),
+    7: ("traffic light", (250, 170, 30)),
+    8: ("traffic sign", (220, 220, 0)),
+    9: ("vegetation", (107, 142, 35)),
+    10: ("terrain", (152, 251, 152)),
+    11: ("sky", (70, 130, 180)),
+    12: ("pedestrian", (220, 20, 60)),
+    13: ("rider", (255, 0, 0)),
+    14: ("car", (0, 0, 142)),
+    15: ("truck", (0, 0, 70)),
+    16: ("bus", (0, 60, 100)),
+    17: ("train", (0, 80, 100)),
+    18: ("motorcycle", (0, 0, 230)),
+    19: ("bicycle", (119, 11, 32)),
+    20: ("static", (110, 190, 160)),
+    21: ("dynamic", (170, 120, 50)),
+    22: ("other", (55, 90, 80)),
+    23: ("water", (45, 60, 150)),
+    24: ("road line", (157, 234, 50)),
+    25: ("ground", (81, 0, 81)),
+    26: ("bridge", (150, 100, 100)),
+    27: ("rail track", (230, 150, 140)),
+    28: ("guard rail", (180, 165, 180)),
+}
+
 
 class SensorBase:
     def __init__(self, world, ego_vehicle, sensor_cfg) -> None:
@@ -131,7 +126,7 @@ class CameraSensor(SensorBase):
         display_pos=None,
         depth=True,
         sem_seg=True,
-        inst_seg=True
+        inst_seg=True,
     ) -> None:
         super().__init__(world, ego_vehicle, sensor_cfg)
         self.depth = depth
@@ -199,7 +194,7 @@ class CameraSensor(SensorBase):
             )
             self.sem_seg_queue = Queue()
             self.sem_seg_camera.listen(self.sem_seg_queue.put)
-        
+
         if self.inst_seg:
             inst_seg_camera_bp = bp_lib.find("sensor.camera.instance_segmentation")
             inst_seg_camera_bp.set_attribute(
@@ -214,7 +209,6 @@ class CameraSensor(SensorBase):
             )
             self.inst_seg_queue = Queue()
             self.inst_seg_camera.listen(self.inst_seg_queue.put)
-
 
     def retrive_data(self, frame_id, timeout):
         rgb_data = super().retrive_data(frame_id, timeout)
@@ -239,11 +233,9 @@ class CameraSensor(SensorBase):
                     inst_seg_data = process_inst_seg_image(inst_seg_data)
                     break
         bb_2d = self.get_bbox_2d(inst_seg_data)
-        if self.display_man is not None:           
+        if self.display_man is not None:
 
-            self.rgb_surface = pygame.surfarray.make_surface(
-                rgb_data.swapaxes(0, 1)
-            )
+            self.rgb_surface = pygame.surfarray.make_surface(rgb_data.swapaxes(0, 1))
             self.rgb_surface = self.draw_cam_bbs(rgb_data, bb_2d, self.rgb_surface)
             self.render()
 
@@ -251,12 +243,12 @@ class CameraSensor(SensorBase):
 
     def get_bbox_2d(self, inst_seg):
         semantic_labels, actor_ids = inst_seg
-        dynamic_class = [12,13,14,15,16,17,18,19]
+        dynamic_class = [12, 13, 14, 15, 16, 17, 18, 19]
         boxes = []
 
         for semantic_class in dynamic_class:
             mask = semantic_labels == semantic_class
-        
+
             unique_actors = np.unique(actor_ids[mask])
             for unique_actor in unique_actors:
                 if unique_actor == self.ego_vehicle.id:
@@ -265,55 +257,62 @@ class CameraSensor(SensorBase):
                 ys, xs = np.where(actor_mask)
                 xmin, xmax = xs.min(), xs.max()
                 ymin, ymax = ys.min(), ys.max()
-                bbox_area = ((xmax-xmin)*(ymax-ymin))
-                if bbox_area>300:
-                    boxes.append({'actor_id': int(unique_actor),
-                        'semantic_label': semantic_class,
-                        'bbox_2d': (int(xmin), int(ymin), int(xmax), int(ymax))})
-                    
+                bbox_area = (xmax - xmin) * (ymax - ymin)
+                if bbox_area > 300:
+                    boxes.append(
+                        {
+                            "actor_id": int(unique_actor),
+                            "semantic_label": semantic_class,
+                            "bbox_2d": (int(xmin), int(ymin), int(xmax), int(ymax)),
+                        }
+                    )
+
         return boxes
-        
+
     def draw_cam_bbs(self, img, boxes, surface):
-        
-        rgb_img = img[:, :, :3][:, :, ::-1] 
-        frame_surface = pygame.surfarray.make_surface(np.transpose(rgb_img[..., 0:3], (1,0,2)))
+
+        rgb_img = img[:, :, :3][:, :, ::-1]
+        frame_surface = pygame.surfarray.make_surface(
+            np.transpose(rgb_img[..., 0:3], (1, 0, 2))
+        )
         surface.blit(frame_surface, (0, 0))
 
         font = pygame.font.SysFont("Arial", 18)
 
         for bbox in boxes:
             if bbox is not None:
-                xmin, ymin, xmax, ymax = [int(v) for v in bbox['bbox_2d']]
-                label = SEMANTIC_MAP[bbox['semantic_label']][0]
-                color = SEMANTIC_MAP[bbox['semantic_label']][1]
-                pygame.draw.rect(surface, color, pygame.Rect(xmin, ymin, xmax-xmin, ymax-ymin), 2)
-                text_surface = font.render(label, True, (255,255,255), color) 
-                text_rect = text_surface.get_rect(topleft=(xmin, ymin-20))
+                xmin, ymin, xmax, ymax = [int(v) for v in bbox["bbox_2d"]]
+                label = SEMANTIC_MAP[bbox["semantic_label"]][0]
+                color = SEMANTIC_MAP[bbox["semantic_label"]][1]
+                pygame.draw.rect(
+                    surface, color, pygame.Rect(xmin, ymin, xmax - xmin, ymax - ymin), 2
+                )
+                text_surface = font.render(label, True, (255, 255, 255), color)
+                text_rect = text_surface.get_rect(topleft=(xmin, ymin - 20))
                 surface.blit(text_surface, text_rect)
 
         return surface
 
-
     def render(self):
         if self.rgb_surface is not None:
             offset = self.display_man.get_display_offset(self.display_pos)
-            self.display_man.display.blit(self.rgb_surface, offset)
+            resize = self.display_man.get_display_size()
+            self.display_man.display.blit(
+                pygame.transform.scale(self.rgb_surface, resize), offset
+            )
 
     def destroy(self):
-        # self.rgb_camera.stop()
+
         self.rgb_camera.destroy()
         if self.depth:
-            # self.depth_camera.stop()
             self.depth_camera.destroy()
 
         if self.sem_seg:
-            # self.sem_seg_camera.stop()
             self.sem_seg_camera.destroy()
-            
+
         if self.inst_seg:
-            # self.inst_seg_camera.stop()
             self.inst_seg_camera.destroy()
-            
+
     def get_transform(self):
         return self.rgb_camera.get_transform()
 
@@ -449,5 +448,4 @@ class LidarSensor(SensorBase):
         return self.pcd, bbs, self.pcd_save
 
     def destroy(self):
-        # self.lidar.stop()
         self.lidar.destroy()

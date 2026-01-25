@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2019 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB).
-#
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
-
 """
 CARLA Dynamic Weather:
 
@@ -13,11 +5,7 @@ Connect to a CARLA Simulator instance and control the weather. Change Sun
 position smoothly with time and generate storms occasionally.
 """
 
-import carla
-
-import argparse
 import math
-import sys
 from carla import VehicleLightState
 
 
@@ -39,7 +27,7 @@ class Sun(object):
         self.altitude = (70 * math.sin(self._t)) - 20
 
     def __str__(self):
-        return 'Sun(alt: %.2f, azm: %.2f)' % (self.altitude, self.azimuth)
+        return "Sun(alt: %.2f, azm: %.2f)" % (self.altitude, self.azimuth)
 
 
 class Storm(object):
@@ -69,7 +57,11 @@ class Storm(object):
             self._increasing = False
 
     def __str__(self):
-        return 'Storm(clouds=%d%%, rain=%d%%, wind=%d%%)' % (self.clouds, self.rain, self.wind)
+        return "Storm(clouds=%d%%, rain=%d%%, wind=%d%%)" % (
+            self.clouds,
+            self.rain,
+            self.wind,
+        )
 
 
 class Weather(object):
@@ -95,10 +87,9 @@ class Weather(object):
             for actor in self.actors:
                 if self.is_day:
                     actor.set_light_state(VehicleLightState.NONE)
-                    
+
                 elif not self.is_day:
                     actor.set_light_state(VehicleLightState.LowBeam)
 
     def __str__(self):
-        return '%s %s' % (self._sun, self._storm)
-
+        return "%s %s" % (self._sun, self._storm)

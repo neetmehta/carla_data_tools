@@ -1,5 +1,4 @@
 import yaml
-import glob
 import os
 import sys
 import math
@@ -17,20 +16,6 @@ from src.pygame_display import DisplayManager
 from src.world_manager import CarlaWorldManager
 
 from src.utils import capture_data_async, AsyncDiskWriter, compute_K
-
-try:
-    sys.path.append(
-        glob.glob(
-            "../carla/dist/carla-*%d.%d-%s.egg"
-            % (
-                sys.version_info.major,
-                sys.version_info.minor,
-                "win-amd64" if os.name == "nt" else "linux-x86_64",
-            )
-        )[0]
-    )
-except IndexError:
-    pass
 
 
 def main():
@@ -52,7 +37,7 @@ def main():
             out_dir = os.path.join(cfg["out_dir"], f'run_{cfg["map"]}_dynamic_weather_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
         os.makedirs(out_dir, exist_ok=True)
         carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
-
+        carla_world.spawn_actors()
         carla_world.spawn_ego_vehicle()
         display_man = None
         if cfg["sensor_preview"]:
@@ -62,7 +47,6 @@ def main():
         carla_world.ego_vehicle.sensor_setup(
             carla_world.world, display_man, enable_lidar_vis=cfg["sensor_preview"]
         )
-        carla_world.spawn_actors()
         carla_world.ego_vehicle.ego_vehicle.set_autopilot(True)
         carla_world.set_synchronous()
 
