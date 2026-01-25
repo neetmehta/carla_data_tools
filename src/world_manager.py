@@ -34,7 +34,7 @@ class CarlaWorldManager:
         self.cfg = cfg
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
         self.client = carla.Client("localhost", 2000)
-        self.client.set_timeout(10.0)
+        self.client.set_timeout(100.0)
         self.world = self.client.load_world(cfg["map"])
         self.traffic_manager = self.client.get_trafficmanager()
         self.traffic_manager.set_global_distance_to_leading_vehicle(2.5)

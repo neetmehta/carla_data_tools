@@ -238,18 +238,18 @@ class CameraSensor(SensorBase):
                 if inst_seg_data.frame == frame_id:
                     inst_seg_data = process_inst_seg_image(inst_seg_data)
                     break
-
+        bb_2d = self.get_bbox_2d(inst_seg_data)
         if self.display_man is not None:           
 
             self.rgb_surface = pygame.surfarray.make_surface(
                 rgb_data.swapaxes(0, 1)
             )
-            self.rgb_surface, bb_2d = self.draw_cam_bbs(rgb_data, inst_seg_data, self.rgb_surface)
+            self.rgb_surface = self.draw_cam_bbs(rgb_data, bb_2d, self.rgb_surface)
             self.render()
 
         return rgb_data, depth_data, sem_seg_data, bb_2d
 
-    def draw_cam_bbs(self, img, inst_seg, surface):
+    def get_bbox_2d(self, inst_seg):
         semantic_labels, actor_ids = inst_seg
         dynamic_class = [12,13,14,15,16,17,18,19]
         boxes = []
@@ -267,9 +267,13 @@ class CameraSensor(SensorBase):
                 ymin, ymax = ys.min(), ys.max()
                 bbox_area = ((xmax-xmin)*(ymax-ymin))
                 if bbox_area>300:
-                    boxes.append({'actor_id': unique_actor,
+                    boxes.append({'actor_id': int(unique_actor),
                         'semantic_label': semantic_class,
-                        'bbox_2d': (xmin, ymin, xmax, ymax)})
+                        'bbox_2d': (int(xmin), int(ymin), int(xmax), int(ymax))})
+                    
+        return boxes
+        
+    def draw_cam_bbs(self, img, boxes, surface):
         
         rgb_img = img[:, :, :3][:, :, ::-1] 
         frame_surface = pygame.surfarray.make_surface(np.transpose(rgb_img[..., 0:3], (1,0,2)))
@@ -287,7 +291,7 @@ class CameraSensor(SensorBase):
                 text_rect = text_surface.get_rect(topleft=(xmin, ymin-20))
                 surface.blit(text_surface, text_rect)
 
-        return surface, []
+        return surface
 
 
     def render(self):
@@ -305,6 +309,10 @@ class CameraSensor(SensorBase):
         if self.sem_seg:
             # self.sem_seg_camera.stop()
             self.sem_seg_camera.destroy()
+            
+        if self.inst_seg:
+            # self.inst_seg_camera.stop()
+            self.inst_seg_camera.destroy()
             
     def get_transform(self):
         return self.rgb_camera.get_transform()
@@ -370,7 +378,7 @@ class LidarSensor(SensorBase):
         )
         self.lidar.listen(self.queue.put)
 
-    def retrive_data(self, frame_id, timeout, camera=None):
+    def retrive_data(self, frame_id, timeout):
         points, colors, intensity = super().retrive_data(frame_id, timeout)
         intensity = [[i] for i in intensity]
 

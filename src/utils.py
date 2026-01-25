@@ -5,6 +5,7 @@ import sys
 import open3d as o3d
 from matplotlib import cm
 import cv2
+import json
 
 try:
     sys.path.append(
@@ -96,12 +97,10 @@ class AsyncDiskWriter:
         if job.get("bb_2d") is not None:
             os.makedirs(os.path.join(sensor_root, "2d_bb_labels"), exist_ok=True)
             with open(
-                os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.txt"), "w"
+                os.path.join(sensor_root, "2d_bb_labels", f"{frame_no}.json"), "w"
             ) as f:
-                for bb in job["bb_2d"]:
-                    f.write(
-                        f"Vehicle {bb[0]:.2f} {bb[1]:.2f} {bb[2]:.2f} {bb[3]:.2f}\n"
-                    )
+                json.dump(job["bb_2d"], f)
+                
                     
         if job.get("transform") is not None:
             os.makedirs(os.path.join(sensor_root, "transforms"), exist_ok=True)
