@@ -79,9 +79,8 @@ carla_data_tools/
 ├── README.md                        # This file
 │
 ├── cfg/                             # Configuration files
-│   ├── config.yaml                  # Global simulation parameters
-│   ├── vehicle_cfg.yaml             # Ego vehicle sensor configuration
-│   └── kitti_config.yaml            # KITTI format output settings
+│   ├── vehicle_cfg.yaml             # Config with 6 cams and 1 Lidar
+│   └── kitti_config.yaml            # A test config with KITTI like camera
 │
 ├── src/                             # Source code modules
 │   ├── __init__.py
@@ -197,7 +196,7 @@ cd path/to/CARLA_0.9.16
 
 # Run a quick test (in another terminal)
 cd carla_data_tools
-python main.py
+python main.py cfg/kitti_config.py
 ```
 
 ---
@@ -215,19 +214,24 @@ python main.py
 2. **Run Data Collection** (your terminal):
    ```bash
    cd carla_data_tools
-   python main.py
+   python main.py cfg/kitti_config.py
    ```
 
 3. **View Results**:
    Data is saved to the directory specified in `config.yaml` under `out_dir`
    ```
    out_dir/
-   └── run_Town03_sunny_20260126_143022/
-       ├── camera_center_rgb/
-       ├── camera_center_depth/
-       ├── camera_center_semantic/
-       ├── lidar_front/
-       └── calibration/
+   └── run_Town10HD_ClearSunset_20260128_012253/
+       └── camera_name/
+            ├── 2d_bb_labels/
+            ├── depth/
+            ├── rgb_images/
+            ├── semantic_masks/
+            ├── transforms/
+            └── calib.txt
+       └── lidar_name
+            ├── bb_labels/
+            └── lidar/       
    ```
 
 4. **Visualize Data** (optional):
@@ -236,8 +240,6 @@ python main.py
 ---
 
 ## Configuration Guide
-
-### Main Configuration (`config.yaml`)
 
 ```yaml
 # Server Connection
@@ -279,13 +281,7 @@ lidar_preview: true                  # Show LiDAR point cloud
 # Advanced Options
 vehicle_detection_threshold: 5       # Min LiDAR points to generate bounding box
 use_kitti_format: false              # Export in KITTI format
-```
 
-### Vehicle & Sensor Configuration (`vehicle_cfg.yaml`)
-
-Define ego vehicle sensors and their placement:
-
-```yaml
 sensors:
   # RGB Camera (front)
   - type: "rgb_camera"
@@ -340,91 +336,25 @@ sensors:
 
 See [CARLA Sensor Documentation](https://carla.readthedocs.io/en/0.9.16/ref_sensors/) for detailed parameter information.
 
-### KITTI Format Configuration (`kitti_config.yaml`)
-
-Configure KITTI dataset output format (if `use_kitti_format: true`):
-
-```yaml
-save_calibration: true              # Save camera calibration files
-save_3d_boxes: true                 # Save 3D bounding boxes
-save_2d_boxes: true                 # Save 2D bounding boxes
-class_mapping:                      # Map CARLA classes to KITTI classes
-  vehicle: "Car"
-  pedestrian: "Pedestrian"
-  bicycle: "Cyclist"
-```
-
----
-
-## Sensor Setup
-
-### RGB Camera
-
-**Purpose:** Standard color image for object detection and classification
-
-**Configuration:**
-```yaml
-- type: "rgb_camera"
-  name: "camera_center_rgb"
-  size: [1280, 720]        # Resolution [width, height]
-  fov: 90                  # Field of view in degrees
-  translation: [0.0, 0.0, 1.3]
-  rotation: [0.0, 0.0, 0.0]
-```
+## Output Files
 
 **Output Files:**
-- `camera_center_rgb/XXXXXX.png` - RGB image (PNG format)
-- `camera_center_rgb/XXXXXX.json` - Camera transformation metadata
+- `camera_name/rgb_images/FRAME_ID.jpg` - RGB image (JPG format)
+- `camera_name/depth/FRAME_ID.npy` - Depth (npy format)
+- `camera_name/semantic_mask/FRAME_ID.npy` - Semantic Image (npy format)
+- `camera_name/2d_bb_labels/FRAME_ID.json` - 2D bb labels (json format)
+- `camera_name/transforms/FRAME_ID.npy` - Sensor transform WRT world (npy format)
+- `camera_name/calib.txt` - Camera Params (txt format)
+- `lidar_name/bb_labels/FRAME_ID.npy` - 3D bb labels (json format)
+- `lidar_name/lidar/FRAME_ID.pcd` - Point cloud (pcd format)
 
-**Use Cases:**
-- Object detection (YOLO, Faster R-CNN)
-- Lane detection
-- Traffic sign recognition
-
----
-
-### Depth Camera
-
-**Purpose:** Per-pixel depth estimation for 3D scene understanding
-
-**Configuration:**
-```yaml
-- type: "depth_camera"
-  name: "camera_center_depth"
-  size: [1280, 720]
-  fov: 90
-  translation: [0.0, 0.0, 1.3]
-  rotation: [0.0, 0.0, 0.0]
-```
-
-**Output Files:**
-- `camera_center_depth/XXXXXX.exr` - Depth map (32-bit float format)
-- Depth values represent distance from camera in meters
-
-**Use Cases:**
+**Tasks**
+- 2D/3D Object detection
+- Semantic Segmentation
 - Monocular depth estimation
-- 3D scene reconstruction
-- Obstacle detection
+- Scene reconstruction
 
 ---
-
-### Semantic Segmentation Camera
-
-**Purpose:** Per-pixel semantic class labels (road, sidewalk, vehicle, pedestrian, etc.)
-
-**Configuration:**
-```yaml
-- type: "sem_seg_camera"
-  name: "camera_center_semantic"
-  size: [1280, 720]
-  fov: 90
-  translation: [0.0, 0.0, 1.3]
-  rotation: [0.0, 0.0, 0.0]
-```
-
-**Output Files:**
-- `camera_center_semantic/XXXXXX.png` - Semantic segmentation mask (PNG format)
-- Each pixel value represents a semantic class ID
 
 **CARLA Semantic Classes:**
 - 0: Road
@@ -456,143 +386,26 @@ class_mapping:                      # Map CARLA classes to KITTI classes
 - 26: Dynamic
 - 27: Other
 
-**Use Cases:**
-- Semantic segmentation networks
-- Scene understanding
-- Road segmentation
-
----
-
-### Instance Segmentation Camera
-
-**Purpose:** Per-pixel instance-level segmentation (distinguishes between individual objects)
-
-**Configuration:**
-```yaml
-- type: "inst_seg_camera"
-  name: "camera_center_instance"
-  size: [1280, 720]
-  fov: 90
-  translation: [0.0, 0.0, 1.3]
-  rotation: [0.0, 0.0, 0.0]
-```
-
-**Output Files:**
-- `camera_center_instance/XXXXXX.png` - Instance segmentation mask
-- Each pixel value represents a unique instance ID
-
-**Use Cases:**
-- Panoptic segmentation
-- Instance segmentation networks
-- Object boundary detection
-
----
-
-### LiDAR
-
-**Purpose:** 3D point cloud for autonomous driving perception
-
-**Configuration:**
-```yaml
-- type: "lidar"
-  name: "lidar_front"
-  channels: 64                    # Number of laser channels (64, 32, 16)
-  points_per_second: 600000       # Total points per revolution
-  rotation_frequency: 10          # Rotations per second
-  upper_fov: 10                   # Upper field of view (degrees)
-  lower_fov: -30                  # Lower field of view (degrees)
-  noise_stddev: 0.03              # Gaussian noise std deviation (meters)
-  translation: [0.0, 0.0, 1.3]
-  rotation: [0.0, 0.0, 0.0]
-```
-
-**Output Files:**
-- `lidar_front/XXXXXX.pcd` - Point cloud in Open3D PCD format
-- `lidar_front/XXXXXX_boxes.json` - 3D bounding boxes (min/max coordinates)
-
-**Point Cloud Format:**
-- X, Y, Z coordinates in vehicle reference frame
-- Optional: Intensity values for each point
-- Format: Binary or ASCII PCD
-
-**Use Cases:**
-- 3D object detection (PointNet++, VoxelNet)
-- Point cloud segmentation
-- Autonomous driving perception
-
----
-
-## Data Output Format
-
-### Directory Structure
-
-```
-output/
-└── run_Town03_sunny_20260126_143022/
-    ├── camera_center_rgb/              # RGB images
-    │   ├── 000000.png
-    │   ├── 000001.png
-    │   └── ...
-    ├── camera_center_depth/            # Depth maps
-    │   ├── 000000.exr
-    │   ├── 000001.exr
-    │   └── ...
-    ├── camera_center_semantic/         # Semantic segmentation
-    │   ├── 000000.png
-    │   ├── 000001.png
-    │   └── ...
-    ├── camera_center_instance/         # Instance segmentation
-    │   ├── 000000.png
-    │   ├── 000001.png
-    │   └── ...
-    ├── lidar_front/                    # 3D point clouds
-    │   ├── 000000.pcd
-    │   ├── 000000_boxes.json           # 3D bounding boxes
-    │   ├── 000001.pcd
-    │   └── ...
-    ├── calibration/                    # Sensor calibration
-    │   ├── camera_center_rgb_K.txt     # Intrinsic matrix
-    │   └── transforms.json              # Extrinsic calibration
-    └── metadata/                       # Dataset metadata
-        ├── config.yaml                 # Simulation parameters
-        └── sensor_config.yaml          # Sensor configurations
-```
-
 ### Bounding Box Format
 
 **2D Bounding Boxes** (from RGB camera):
 ```json
 {
-  "frame_id": 0,
-  "bounding_boxes": [
-    {
-      "x1": 100,
-      "y1": 200,
-      "x2": 250,
-      "y2": 450,
-      "class": "vehicle",
-      "confidence": 1.0,
-      "actor_id": 123
-    }
-  ]
+  "actor_id": 0,
+  "bbox_2d": [x1, y1, x2, y2],
+  "semantic_label": class_id,
+  "class_name": Name
 }
 ```
 
 **3D Bounding Boxes** (from LiDAR):
 ```json
-{
-  "frame_id": 0,
-  "bounding_boxes_3d": [
-    {
-      "center": [10.5, 2.3, 0.5],       # [x, y, z] in vehicle frame
-      "extent": [4.5, 2.0, 1.7],        # [length, width, height]
-      "rotation": 0.45,                 # Yaw angle in radians
-      "class": "vehicle",
-      "actor_id": 123,
-      "velocity": [5.2, 0.1, 0.0]       # [vx, vy, vz]
-    }
-  ]
-}
+{"bbox": {
+    "center": [x,y,z],                  # [x, y, z] in vehicle frame
+    "extent": [h,w,l],                  # [length, width, height]
+    "yaw": theta},                      # Yaw angle in radians
+  "actor_id": id, 
+  "actor_class": "class_name"}
 ```
 
 ### Calibration Format
@@ -603,26 +416,6 @@ fx 0  cx
 0  fy cy
 0  0  1
 ```
-
-**Extrinsic Calibration** (`transforms.json`):
-```json
-{
-  "cameras": {
-    "camera_center_rgb": {
-      "translation": [0.0, 0.0, 1.3],
-      "rotation": [0.0, 0.0, 0.0]
-    }
-  },
-  "lidar": {
-    "lidar_front": {
-      "translation": [0.0, 0.0, 1.3],
-      "rotation": [0.0, 0.0, 0.0]
-    }
-  }
-}
-```
-
----
 
 ## Project Structure
 
@@ -743,23 +536,12 @@ Frame skipping automatically set to: `30 / 20 = 1.5` frames
 
 ### Custom Traffic Behavior
 
-Adjust vehicle behavior in `config.yaml`:
-
-```yaml
-traffic_manager_seed: 42                # Deterministic traffic
-vehicle_damage_disabled: true           # Prevent damage effects
-ignore_lights_percentage: 50            # 50% vehicles ignore signals
-ignore_signs_percentage: 30             # 30% vehicles ignore signs
-```
-
 ### Real-Time Visualization
 
 Enable to see data collection in action:
 
 ```yaml
-sensor_preview: true               # Show camera views
-vehicle_preview: true              # Show vehicle positions
-lidar_preview: true                # Show point cloud
+sensor_preview: true               # Show sensor views
 ```
 
 **Controls:**
