@@ -10,6 +10,7 @@ import yaml
 import os
 import sys
 import math
+import argparse
 from datetime import datetime
 
 sys.path.append("src/")
@@ -32,7 +33,7 @@ DISK_WRITER_WORKERS = 8  # Number of async disk writer threads
 DISK_WRITER_QUEUE_SIZE = 200  # Maximum queue size for disk writer
 
 
-def main():
+def main(config_path):
     """
     Main simulation and data collection loop.
     
@@ -40,16 +41,16 @@ def main():
     simulation loop. Handles data capture from RGB cameras and LiDAR sensors
     with asynchronous disk writing for efficient I/O.
     
+    Args:
+        config_path (str): Path to the configuration file (config.yaml).
+    
     Raises:
-        FileNotFoundError: If config files are not found.
+        FileNotFoundError: If config file is not found.
         Exception: Any runtime errors during simulation are caught and logged.
     """
     try:
-        # Load configuration files
-        with open("cfg/vehicle_cfg.yaml", "r") as f:
-            vehicle_cfg = yaml.safe_load(f)
-
-        with open("cfg/config.yaml", "r") as f:
+        # Load configuration file from provided path
+        with open(config_path, "r") as f:
             cfg = yaml.safe_load(f)
 
         # Create output directory with timestamp and scenario info
@@ -59,7 +60,7 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
 
         # Initialize CARLA world manager
-        carla_world = CarlaWorldManager(cfg=cfg, vehicle_cfg=vehicle_cfg)
+        carla_world = CarlaWorldManager(cfg=cfg)
         carla_world.spawn_actors()
         carla_world.spawn_peds()
         carla_world.spawn_ego_vehicle()
@@ -215,4 +216,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="CARLA Data Collection and Simulation Script"
+    )
+    parser.add_argument(
+        "config_path",
+        type=str,
+        help="Path to the configuration file (config.yaml)"
+    )
+    args = parser.parse_args()
+    main(args.config_path)

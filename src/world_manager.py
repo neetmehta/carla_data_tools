@@ -49,7 +49,7 @@ class CarlaWorldManager:
         delta_seconds: Fixed simulation timestep duration
     """
 
-    def __init__(self, cfg, vehicle_cfg) -> None:
+    def __init__(self, cfg) -> None:
         """
         Initialize CARLA world manager.
         
@@ -59,7 +59,6 @@ class CarlaWorldManager:
                 - fps: Simulation frequency in frames per second
                 - weather: Initial weather preset name (default: ClearNoon)
                 - no_of_vehicles: Number of NPC vehicles to spawn
-            vehicle_cfg: Vehicle configuration dictionary for ego vehicle
         """
         self.cfg = cfg
         self.delta_seconds = 1.0 / cfg.get("fps", 20)
@@ -77,7 +76,6 @@ class CarlaWorldManager:
         self._configure_world_settings()
         
         # Initialize vehicle and weather systems
-        self.ego_vehicle_cfg = vehicle_cfg
         self.world_queue = queue.Queue()
         self._settings = None
         self.vehicles = []
@@ -118,9 +116,9 @@ class CarlaWorldManager:
         This should be called after traffic actors are spawned to avoid collisions.
         """
         bp_lib = self.world.get_blueprint_library()
-        self.ego_vehicle = EgoVehicle(bp_lib, self.ego_vehicle_cfg)
+        self.ego_vehicle = EgoVehicle(bp_lib, self.cfg)
         self.ego_vehicle.spwan_ego_vehicle(self.world)
-        logger.info(f"Spawned ego vehicle: {self.ego_vehicle_cfg['vehicle']}")
+        logger.info(f"Spawned ego vehicle: {self.cfg['vehicle']}")
 
     def spawn_actors(self):
         """
